@@ -35,8 +35,8 @@
   const Engine = {
     rows: 6,
     cols: 5,
-    allowed: null,     // Set by dictionary loader
-    answer: 'CRANE',   // Will be overwritten by dictionary picker
+    allowedSet: null,   // Set for O(1) membership checks
+    answer: 'CRANE',
 
     init(cfg) {
       if (cfg && cfg.cols) this.cols = cfg.cols;
@@ -54,8 +54,16 @@
       return this.getConfig();
     },
 
-    setAllowed(list){ this.allowed = Array.isArray(list) ? list : null; },
-    setAnswer(word){ if (word && word.length === this.cols) this.answer = word.toUpperCase(); },
+    setAllowed(listOrSet){
+      // Accept Array or Set; normalize to Set of UPPERCASE
+      if (!listOrSet) { this.allowedSet = null; return; }
+      if (listOrSet instanceof Set) { this.allowedSet = listOrSet; return; }
+      this.allowedSet = new Set(listOrSet.map(w => w.toUpperCase()));
+    },
+
+    setAnswer(word){
+      if (word) this.answer = word.toUpperCase();
+    },
 
     getConfig(){ return { rows:this.rows, cols:this.cols }; },
     getBoard(){ return this.board; },
@@ -89,8 +97,8 @@
     },
 
     isAllowedWord(word){
-      if (!this.allowed) return true; // if not loaded yet, allow (dev fallback)
-      return this.allowed.includes(word.toUpperCase());
+      if (!this.allowedSet) return true; // dev fallback
+      return this.allowedSet.has(word.toUpperCase());
     },
 
     submitRow(){
@@ -133,5 +141,5 @@
   };
 
   global.WordscendEngine = Engine;
-  console.log('[Wordscend] Engine loaded (awaiting init + dictionary).');
+  console.log('[Wordscend] Engine loaded (awaiting init).');
 })(window);
