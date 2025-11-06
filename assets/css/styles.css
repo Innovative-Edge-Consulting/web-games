@@ -52,3 +52,49 @@ button:active { transform: translateY(1px); }
   background: #0f1214;
   color: var(--text, #fff);
 }
+
+/* ==== Wordscend typing visuals ==== */
+.ws-grid { display: grid; gap: 8px; }
+.ws-row {
+  display: grid;
+  grid-template-columns: repeat(5, var(--tileSize));
+  gap: 8px;
+}
+
+.ws-tile {
+  width: var(--tileSize);
+  height: var(--tileSize);
+  border: 1px solid var(--border, #333);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: #0f1214;
+  color: var(--text, #fff);
+  user-select: none;
+  transition: transform 0.06s ease;
+}
+
+.ws-tile.active {
+  outline: 2px solid var(--brand, #497f64);
+  outline-offset: -2px;
+}
+
+.ws-tile.filled {
+  background: #111419;
+  border-color: #3a3f45;
+}
+
+.ws-row.ws-locked .ws-tile {
+  opacity: 0.9;
+}
+
+@keyframes ws-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+.ws-row.shake .ws-tile {
+  animation: ws-shake 120ms linear 0s 2;
+}
