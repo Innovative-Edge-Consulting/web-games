@@ -4,15 +4,10 @@
     allowedSet: null,
     answers: null,
 
-    /**
-     * Load allowed words from DWYL raw text and (optionally) answers.txt from your repo.
-     * @param {string} dwylUrl   - https://raw.githubusercontent.com/dwyl/english-words/master/words.txt
-     * @param {object} opts      - { minLen:4, maxLen:7, answersBase:'/data' }
-     */
     async loadDWYL(dwylUrl, opts = {}) {
       const minLen = opts.minLen ?? 4;
       const maxLen = opts.maxLen ?? 7;
-      const answersBase = opts.answersBase; // e.g., `${BASE}/data`
+      const answersBase = opts.answersBase;
 
       function filterLinesToAZRange(text) {
         const set = new Set();
@@ -28,7 +23,7 @@
         return set;
       }
 
-      // 1) Load DWYL words
+      // Allowed from DWYL
       let allowedSet = null;
       try {
         const res = await fetch(dwylUrl, { cache: 'no-store' });
@@ -39,14 +34,12 @@
       } catch (e) {
         console.warn('[Wordscend] Failed to fetch DWYL words:', e);
       }
-
-      // Fallback tiny set if needed
       if (!allowedSet || allowedSet.size === 0) {
         allowedSet = new Set(['ABOUT','OTHER','WHICH','CRANE','ROUTE','ALERT','TRAIN','PLANT','SHEEP','BRAVE','POINT','CLEAN','WATER','LIGHT']);
       }
       this.allowedSet = allowedSet;
 
-      // 2) Load answers.txt (optional)
+      // Optional curated answers
       let answers = null;
       if (answersBase) {
         try {
@@ -56,17 +49,22 @@
             answers = txt.split(/\r?\n/).map(s => s.trim().toUpperCase()).filter(Boolean);
           }
         } catch (e) {
-          console.warn('[Wordscend] Could not load answers.txt; will derive from allowed.', e);
+          console.warn('[Wordscend] Could not load answers.txt; deriving from allowed.', e);
         }
       }
-
-      // 3) Derive answers if not provided: pick 5-letter subset from allowed
       if (!answers || answers.length === 0) {
         answers = Array.from(this.allowedSet).filter(w => w.length === 5);
       }
-
       this.answers = answers;
+
       return { allowedSet: this.allowedSet, answers: this.answers };
+    },
+
+    answersOfLength(len){
+      const curated = (this.answers || []).filter(w => w.length === len);
+      if (curated.length > 0) return curated;
+      // derive from allowed set
+      return Array.from(this.allowedSet || []).filter(w => w.length === len);
     },
 
     pickToday(list) {
