@@ -1,32 +1,72 @@
 // /core/dictionary.js
 (function (global) {
   const Dict = {
-    allowed: null,
+    allowedSet: null,
     answers: null,
 
-    async loadLists(baseUrl) {
-      async function loadText(url) {
-        try {
-          const res = await fetch(url, { cache: 'no-store' });
-          if (!res.ok) return null;
+    /**
+     * Load allowed words from DWYL raw text and (optionally) answers.txt from your repo.
+     * @param {string} dwylUrl   - https://raw.githubusercontent.com/dwyl/english-words/master/words.txt
+     * @param {object} opts      - { minLen:4, maxLen:7, answersBase:'/data' }
+     */
+    async loadDWYL(dwylUrl, opts = {}) {
+      const minLen = opts.minLen ?? 4;
+      const maxLen = opts.maxLen ?? 7;
+      const answersBase = opts.answersBase; // e.g., `${BASE}/data`
+
+      function filterLinesToAZRange(text) {
+        const set = new Set();
+        const lines = text.split(/\r?\n/);
+        for (let i = 0; i < lines.length; i++) {
+          let w = lines[i].trim();
+          if (!w) continue;
+          w = w.toUpperCase();
+          if (w.length < minLen || w.length > maxLen) continue;
+          if (!/^[A-Z]+$/.test(w)) continue;
+          set.add(w);
+        }
+        return set;
+      }
+
+      // 1) Load DWYL words
+      let allowedSet = null;
+      try {
+        const res = await fetch(dwylUrl, { cache: 'no-store' });
+        if (res.ok) {
           const text = await res.text();
-          return text
-            .split(/\r?\n/)
-            .map(s => s.trim().toUpperCase())
-            .filter(Boolean);
-        } catch {
-          return null;
+          allowedSet = filterLinesToAZRange(text);
+        }
+      } catch (e) {
+        console.warn('[Wordscend] Failed to fetch DWYL words:', e);
+      }
+
+      // Fallback tiny set if needed
+      if (!allowedSet || allowedSet.size === 0) {
+        allowedSet = new Set(['ABOUT','OTHER','WHICH','CRANE','ROUTE','ALERT','TRAIN','PLANT','SHEEP','BRAVE','POINT','CLEAN','WATER','LIGHT']);
+      }
+      this.allowedSet = allowedSet;
+
+      // 2) Load answers.txt (optional)
+      let answers = null;
+      if (answersBase) {
+        try {
+          const res = await fetch(`${answersBase}/answers.txt`, { cache: 'no-store' });
+          if (res.ok) {
+            const txt = await res.text();
+            answers = txt.split(/\r?\n/).map(s => s.trim().toUpperCase()).filter(Boolean);
+          }
+        } catch (e) {
+          console.warn('[Wordscend] Could not load answers.txt; will derive from allowed.', e);
         }
       }
 
-      const allowed = await loadText(`${baseUrl}/allowed.txt`);
-      const answers = await loadText(`${baseUrl}/answers.txt`);
+      // 3) Derive answers if not provided: pick 5-letter subset from allowed
+      if (!answers || answers.length === 0) {
+        answers = Array.from(this.allowedSet).filter(w => w.length === 5);
+      }
 
-      // Fallback tiny lists so dev doesn’t break if files missing
-      this.allowed = allowed || ['ABOUT','OTHER','WHICH','CRANE','ROUTE','ALERT','TRAIN','PLANT','SHEEP'];
-      this.answers = answers || ['CRANE','ROUTE','ALERT','PLANT','SHEEP'];
-
-      return { allowed: this.allowed, answers: this.answers };
+      this.answers = answers;
+      return { allowedSet: this.allowedSet, answers: this.answers };
     },
 
     pickToday(list) {
@@ -38,5 +78,5 @@
   };
 
   global.WordscendDictionary = Dict;
-  console.log('[Wordscend] Dictionary loader ready.');
+  console.log('[Wordscend] Dictionary loader ready (DWYL).');
 })(window);
