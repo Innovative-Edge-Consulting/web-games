@@ -35,7 +35,7 @@
   const Engine = {
     rows: 6,
     cols: 5,
-    allowedSet: null,   // Set for O(1) membership checks
+    allowedSet: null,
     answer: 'CRANE',
 
     init(cfg) {
@@ -55,7 +55,6 @@
     },
 
     setAllowed(listOrSet){
-      // Accept Array or Set; normalize to Set of UPPERCASE
       if (!listOrSet) { this.allowedSet = null; return; }
       if (listOrSet instanceof Set) { this.allowedSet = listOrSet; return; }
       this.allowedSet = new Set(listOrSet.map(w => w.toUpperCase()));
@@ -107,7 +106,6 @@
 
       const guess = this.board[this.currentRow].join('').toUpperCase();
 
-      // validate against dictionary
       if (!this.isAllowedWord(guess)) {
         return { ok:false, reason:'invalid' };
       }
@@ -115,7 +113,7 @@
       const marks = evaluateGuess(guess, this.answer);
       this.rowMarks[this.currentRow] = marks.slice();
 
-      // keyboard precedence
+      // update keyboard states with precedence
       for (let i = 0; i < guess.length; i++) {
         const ch = guess[i];
         const m = marks[i];
@@ -124,9 +122,11 @@
         else if (!(ch in this.keyStatus)) this.keyStatus[ch] = m;
       }
 
+      const attempt = this.currentRow + 1;
+
       if (guess === this.answer) {
         this.done = true; this.win = true;
-        return { ok:true, guess, marks, win:true, done:true };
+        return { ok:true, guess, marks, win:true, done:true, attempt };
       }
 
       this.currentRow += 1;
@@ -134,9 +134,9 @@
 
       if (this.currentRow >= this.rows) {
         this.done = true; this.win = false;
-        return { ok:true, guess, marks, win:false, done:true };
+        return { ok:true, guess, marks, win:false, done:true, attempt };
       }
-      return { ok:true, guess, marks, win:false, done:false };
+      return { ok:true, guess, marks, win:false, done:false, attempt };
     }
   };
 
