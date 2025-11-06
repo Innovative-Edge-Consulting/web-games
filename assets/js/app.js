@@ -21,8 +21,8 @@
 
   // 4) Load core engine + UI, then mount into #game
   Promise.all([
-    loadScript(`${BASE}/core/engine.js?v=2`),
-    loadScript(`${BASE}/ui/dom-view.js?v=2`)
+    loadScript(`${BASE}/core/engine.js?v=4`),
+    loadScript(`${BASE}/ui/dom-view.js?v=4`)
   ])
     .then(() => {
       const root = document.getElementById('game') || document.body;
