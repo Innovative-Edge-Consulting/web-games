@@ -35,18 +35,27 @@
   const Engine = {
     rows: 6,
     cols: 5,
+    allowed: null,     // Set by dictionary loader
+    answer: 'CRANE',   // Will be overwritten by dictionary picker
 
-    init() {
+    init(cfg) {
+      if (cfg && cfg.cols) this.cols = cfg.cols;
+      if (cfg && cfg.rows) this.rows = cfg.rows;
+
       this.board = createEmptyBoard(this.rows, this.cols);
       this.currentRow = 0;
       this.currentCol = 0;
-      this.answer = 'CRANE'; // TEMP; dictionary/rotating answer coming next
+
       this.rowMarks = Array.from({ length: this.rows }, () => Array(this.cols).fill(null));
       this.keyStatus = {}; // { A: 'absent'|'present'|'correct' }
       this.done = false;
       this.win = false;
+
       return this.getConfig();
     },
+
+    setAllowed(list){ this.allowed = Array.isArray(list) ? list : null; },
+    setAnswer(word){ if (word && word.length === this.cols) this.answer = word.toUpperCase(); },
 
     getConfig(){ return { rows:this.rows, cols:this.cols }; },
     getBoard(){ return this.board; },
@@ -79,11 +88,22 @@
       return this.board[this.currentRow].every((c) => c && c.length === 1);
     },
 
+    isAllowedWord(word){
+      if (!this.allowed) return true; // if not loaded yet, allow (dev fallback)
+      return this.allowed.includes(word.toUpperCase());
+    },
+
     submitRow(){
       if (this.done) return { ok:false, reason:'done' };
       if (!this.rowComplete()) return { ok:false, reason:'incomplete' };
 
-      const guess = this.board[this.currentRow].join('');
+      const guess = this.board[this.currentRow].join('').toUpperCase();
+
+      // validate against dictionary
+      if (!this.isAllowedWord(guess)) {
+        return { ok:false, reason:'invalid' };
+      }
+
       const marks = evaluateGuess(guess, this.answer);
       this.rowMarks[this.currentRow] = marks.slice();
 
@@ -112,7 +132,6 @@
     }
   };
 
-  Engine.init();
   global.WordscendEngine = Engine;
-  console.log('[Wordscend] Engine ready:', Engine.getConfig());
+  console.log('[Wordscend] Engine loaded (awaiting init + dictionary).');
 })(window);
