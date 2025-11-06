@@ -1,10 +1,5 @@
 // /assets/js/app.js
 (function () {
-  // 1) Optional status test (keeps your previous visual check working)
-  const statusEl = document.getElementById('status');
-  if (statusEl) statusEl.textContent = '✅ JS connected!';
-
-  // 2) Utility: load another JS file dynamically
   function loadScript(src) {
     return new Promise((resolve, reject) => {
       const s = document.createElement('script');
@@ -16,21 +11,31 @@
     });
   }
 
-  // 3) Where to load dependencies from (your GitHub Pages base)
   const BASE = 'https://innovative-edge-consulting.github.io/web-games';
 
-  // 4) Load core engine + UI, then mount into #game
+  // Load engine + UI + dictionary, then init game AFTER dictionary is loaded
   Promise.all([
-    loadScript(`${BASE}/core/engine.js?v=4`),
-    loadScript(`${BASE}/ui/dom-view.js?v=4`)
+    loadScript(`${BASE}/core/engine.js?v=20`),
+    loadScript(`${BASE}/ui/dom-view.js?v=20`),
+    loadScript(`${BASE}/core/dictionary.js?v=20`)
   ])
-    .then(() => {
-      const root = document.getElementById('game') || document.body;
-      const cfg = window.WordscendEngine.getConfig();
-      window.WordscendUI.mount(root, cfg);
-      console.log('[Wordscend] app.js initialized');
-    })
-    .catch(err => {
-      console.error('[Wordscend] Dependency load failed:', err);
-    });
+  .then(async () => {
+    // 1) Load allowed/answers
+    const { allowed, answers } = await window.WordscendDictionary.loadLists(`${BASE}/data`);
+
+    // 2) Initialize engine
+    window.WordscendEngine.setAllowed(allowed);
+
+    // 3) Pick today's answer deterministically
+    const today = window.WordscendDictionary.pickToday(answers);
+    window.WordscendEngine.setAnswer(today);
+
+    // 4) Init board + mount UI
+    const cfg  = window.WordscendEngine.init(); // rows/cols unchanged for now
+    const root = document.getElementById('game') || document.body;
+    window.WordscendUI.mount(root, cfg);
+
+    console.log('[Wordscend] Initialized with answer of the day.');
+  })
+  .catch(err => console.error('[Wordscend] Bootstrap failed:', err));
 })();
