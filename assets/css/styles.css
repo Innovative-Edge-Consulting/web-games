@@ -6,7 +6,6 @@
   --muted:#a5b3a8;
   --border:#2a2d31;
 
-  /* tile sizing scales on mobile */
   --tileSize: clamp(42px, min(9.5vw, (100vw - 64px)/7), 56px);
 
   --correct:#2ea043; /* green */
@@ -22,28 +21,47 @@ body{
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
 }
 
-/* Center the stage neatly on the page */
+/* Stage centers everything and allows absolute overlay */
 #game{
   width:100%;
   max-width:720px;
-  margin:40px auto;                 /* centers horizontally */
+  margin:40px auto;
   padding:0 16px 48px;
   display:flex;
   flex-direction:column;
-  align-items:center;               /* centers grid + keyboard */
+  align-items:center;
   gap:16px;
+  position:relative; /* for bubble overlay */
+}
+
+/* ===== HUD ===== */
+.ws-hud{
+  width:100%;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  max-width:560px;
+}
+.ws-hud .ws-tag{
+  font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  padding:8px 10px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:#111419;
+  color:var(--text);
 }
 
 /* ===== Grid ===== */
 .ws-grid{
   display:grid;
   gap:8px;
-  justify-items:center;             /* rows centered */
+  justify-items:center;
 }
 .ws-row{
   display:grid;
   gap:8px;
-  /* columns set inline by JS to match word length */
+  /* columns set inline by JS based on word length */
 }
 .ws-tile{
   width:var(--tileSize);
@@ -58,17 +76,28 @@ body{
   color:var(--text);
   user-select:none;
   transition:transform .06s ease, background .15s ease, border-color .15s ease;
+  transform-style:preserve-3d;
 }
 .ws-tile.active{ outline:2px solid var(--brand); outline-offset:-2px; }
 .ws-tile.filled{ background:#111419; border-color:#3a3f45; }
 .ws-row.ws-locked .ws-tile{ opacity:.9; }
 
-/* Submitted state colors */
+/* Submitted colors */
 .ws-tile.state-correct{ background:var(--correct); border-color:var(--correct); color:#000; }
 .ws-tile.state-present{ background:var(--present); border-color:var(--present); color:#000; }
-
-/* ✅ Keep a thin black border around incorrect letters */
+/* ✅ thin black border for incorrect */
 .ws-tile.state-absent{  background:var(--absent);  border-color:#000; color:#fff; }
+
+/* Flip animation */
+@keyframes ws-flip-1 {
+  0%   { transform: rotateX(0); }
+  49%  { transform: rotateX(90deg); }
+  51%  { transform: rotateX(90deg); }
+  100% { transform: rotateX(0); }
+}
+.ws-tile.flip {
+  animation: ws-flip-1 420ms ease var(--flip-delay, 0ms) both;
+}
 
 /* Shake for errors */
 @keyframes ws-shake{
@@ -87,7 +116,7 @@ body{
 .ws-kb-row{
   display:grid;
   grid-auto-flow:column;
-  justify-content:center;           /* center each keyboard row */
+  justify-content:center;
   gap:6px;
 }
 .ws-kb-key{
@@ -110,13 +139,25 @@ body{
 .ws-kb-key.k-present{ background:var(--present); border-color:var(--present); color:#000; }
 .ws-kb-key.k-absent{  background:var(--absent);  border-color:#000;  color:#fff; }
 
-/* Toast/status */
-.ws-msg{
-  margin-top:2px;
-  font-size:14px;
+/* ===== Bubble message (overlay) ===== */
+.ws-bubble{
+  position:absolute;
+  top:-10px; left:50%;
+  transform:translate(-50%, -100%);
+  background:#111419;
   color:var(--text);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:10px 12px;
+  font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  box-shadow:0 6px 18px rgba(0,0,0,.35);
   opacity:0;
-  transition:opacity .15s ease;
-  text-align:center;
+  pointer-events:none;
+  transition:opacity .18s ease, transform .18s ease;
+  white-space:nowrap;
+  z-index:5;
 }
-.ws-msg.show{ opacity:1 }
+.ws-bubble.show{
+  opacity:1;
+  transform:translate(-50%, -120%);
+}
