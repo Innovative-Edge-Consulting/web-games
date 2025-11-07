@@ -18,7 +18,7 @@
           <div class="ws-tag" id="ws-level">Level: -</div>
           <div class="ws-hud-right">
             <div class="ws-tag" id="ws-score">Score: 0</div>
-            <div class="ws-tag" id="ws-streak" title="Daily completion streak">🔥 Streak 0</div>
+            <div class="ws-tag" id="ws-streak" title="Daily play streak">🔥 Streak 0</div>
           </div>
         </div>
 
@@ -40,7 +40,12 @@
 
       this.renderGrid();
       this.renderKeyboard();
+
+      // Bind physical keyboard ONCE per page
       this.bindKeyboard();
+
+      // IMPORTANT: ensure we (re)bind on-screen keyboard EACH mount
+      this._kbClickBound = false;
       this.bindKbClicks();
 
       console.log('[Wordscend] UI mounted:', config.rows, 'rows ×', config.cols);
@@ -138,12 +143,10 @@
         const tag = (e.target && e.target.tagName || '').toLowerCase();
         if (tag === 'input' || tag === 'textarea' || e.metaKey || e.ctrlKey || e.altKey) return;
 
-        // Allow Escape to close intro/end cards quickly
+        // Escape closes modals
         if (e.key === 'Escape') {
-          const intro = document.querySelector('.ws-intro');
-          const endc  = document.querySelector('.ws-endcard');
-          if (intro) intro.remove();
-          if (endc)  endc.remove();
+          document.querySelector('.ws-intro')?.remove();
+          document.querySelector('.ws-endcard')?.remove();
           return;
         }
 
@@ -228,8 +231,7 @@
       const rows = this.gridEl.querySelectorAll('.ws-row');
       const rowEl = rows[cursor.row];
       if (!rowEl) return;
-      rowEl.classList.remove('shake');
-      void rowEl.offsetWidth;
+      rowEl.classList.remove('shake'); void rowEl.offsetWidth;
       rowEl.classList.add('shake');
       setTimeout(() => rowEl.classList.remove('shake'), 400);
     },
@@ -283,7 +285,6 @@
       }, { passive:true });
     },
 
-    /* ---------- NEW: Intro Card ---------- */
     showIntroCard() {
       const existing = document.querySelector('.ws-intro');
       if (existing) existing.remove();
@@ -307,7 +308,7 @@
             <div class="ws-mini-tile absent">S</div>
             <div class="ws-mini-tile present">Y</div>
           </div>
-          <p style="margin-top:8px;">Keep your <strong>🔥 streak</strong> alive by finishing all 4 levels each day.</p>
+          <p style="margin-top:8px;">Keep your <strong>🔥 streak</strong> alive by playing every day.</p>
           <div class="row">
             <button class="ws-btn primary" data-action="play">Play Now</button>
             <button class="ws-btn" data-action="later">Maybe Later</button>
