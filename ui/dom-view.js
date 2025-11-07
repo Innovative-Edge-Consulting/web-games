@@ -12,7 +12,7 @@
       this.root = rootEl;
       this.config = config;
 
-      // Build structure (HUD now has Level, Score, Streak)
+      // Build structure (HUD: Level, Score, Streak)
       this.root.innerHTML = `
         <div class="ws-hud">
           <div class="ws-tag" id="ws-level">Level: -</div>
@@ -41,12 +41,12 @@
       this.renderGrid();
       this.renderKeyboard();
       this.bindKeyboard();
-      this.bindKbClicks(); // single pointer listener
+      this.bindKbClicks();
 
       console.log('[Wordscend] UI mounted:', config.rows, 'rows ×', config.cols);
     },
 
-    // HUD now accepts: levelText ("Level 3/4"), score, streak
+    // HUD: "Level 3/4", score, streak
     setHUD(levelText, score, streak){
       if (this.levelEl)  this.levelEl.textContent  = levelText;
       if (this.scoreEl)  this.scoreEl.textContent  = `Score: ${score}`;
@@ -137,11 +137,21 @@
       window.addEventListener('keydown', (e) => {
         const tag = (e.target && e.target.tagName || '').toLowerCase();
         if (tag === 'input' || tag === 'textarea' || e.metaKey || e.ctrlKey || e.altKey) return;
+
+        // Allow Escape to close intro/end cards quickly
+        if (e.key === 'Escape') {
+          const intro = document.querySelector('.ws-intro');
+          const endc  = document.querySelector('.ws-endcard');
+          if (intro) intro.remove();
+          if (endc)  endc.remove();
+          return;
+        }
+
         this.handleInput(e.key);
       });
     },
 
-    /* ---------- Input (on-screen keyboard clicks/taps) ---------- */
+    /* ---------- Input (on-screen keyboard) ---------- */
     bindKbClicks() {
       if (this._kbClickBound) return;
       this._kbClickBound = true;
@@ -271,6 +281,62 @@
           }
         }
       }, { passive:true });
+    },
+
+    /* ---------- NEW: Intro Card ---------- */
+    showIntroCard() {
+      const existing = document.querySelector('.ws-intro');
+      if (existing) existing.remove();
+
+      const wrap = document.createElement('div');
+      wrap.className = 'ws-intro';
+      wrap.innerHTML = `
+        <div class="card" role="dialog" aria-label="How to play Wordscend">
+          <h3>Welcome to Wordscend 🧩</h3>
+          <p>Climb through <strong>4 levels</strong> of daily word puzzles — from 4-letter to 7-letter words.</p>
+          <p><strong>How to play:</strong></p>
+          <ul style="margin:6px 0 0 18px; color:var(--muted); line-height:1.5;">
+            <li>Guess the word in <strong>6 tries</strong>.</li>
+            <li>Tiles turn <strong>green</strong> when correct, <strong>yellow</strong> if misplaced.</li>
+            <li>Beat each level to ascend to the next.</li>
+          </ul>
+          <div class="ws-mini-row" aria-hidden="true">
+            <div class="ws-mini-tile correct">C</div>
+            <div class="ws-mini-tile present">A</div>
+            <div class="ws-mini-tile absent">T</div>
+            <div class="ws-mini-tile absent">S</div>
+            <div class="ws-mini-tile present">Y</div>
+          </div>
+          <p style="margin-top:8px;">Keep your <strong>🔥 streak</strong> alive by finishing all 4 levels each day.</p>
+          <div class="row">
+            <button class="ws-btn primary" data-action="play">Play Now</button>
+            <button class="ws-btn" data-action="later">Maybe Later</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(wrap);
+
+      const close = () => wrap.remove();
+      wrap.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+        const act = btn.dataset.action;
+        if (act === 'play') {
+          try { localStorage.setItem('ws_intro_seen', '1'); } catch {}
+          close();
+        }
+        if (act === 'later') close();
+      }, { passive:true });
+
+      // Enter = Play, Escape = Close
+      const keyHandler = (e) => {
+        if (e.key === 'Enter') {
+          try { localStorage.setItem('ws_intro_seen', '1'); } catch {}
+          close();
+        }
+        if (e.key === 'Escape') close();
+      };
+      window.addEventListener('keydown', keyHandler, { once: true });
     }
   };
 
