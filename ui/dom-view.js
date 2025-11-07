@@ -16,10 +16,8 @@
       this.root.innerHTML = `
         <div class="ws-hud">
           <div class="ws-tag" id="ws-level">Level: -</div>
-          <div class="ws-hud-right">
-            <div class="ws-tag" id="ws-score">Score: 0</div>
-            <div class="ws-tag" id="ws-streak" title="Daily play streak">🔥 Streak 0</div>
-          </div>
+          <div class="ws-tag" id="ws-score">Score: 0</div>
+          <div class="ws-tag" id="ws-streak" title="Daily play streak">🔥 Streak 0</div>
         </div>
 
         <div class="ws-stage">
