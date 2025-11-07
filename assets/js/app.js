@@ -50,11 +50,13 @@
       const resolved = new URL(override, document.baseURI);
       return stripTrailingSlash(resolved.href);
     }
-    const baseRef = (document.currentScript && document.currentScript.src) || document.baseURI;
+
     try {
-      return stripTrailingSlash(new URL('.', baseRef).href);
-    } catch (_) {
+      // document.baseURI already reflects the directory that served index.html
       return stripTrailingSlash(new URL('.', document.baseURI).href);
+    } catch (_) {
+      // Last-resort: fall back to the current location without the trailing file
+      return stripTrailingSlash(new URL('.', location.href).href);
     }
   }
 
