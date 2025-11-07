@@ -12,11 +12,14 @@
       this.root = rootEl;
       this.config = config;
 
-      // Build structure
+      // Build structure (HUD now has Level, Score, Streak)
       this.root.innerHTML = `
         <div class="ws-hud">
           <div class="ws-tag" id="ws-level">Level: -</div>
-          <div class="ws-tag" id="ws-score">Score: 0</div>
+          <div class="ws-hud-right">
+            <div class="ws-tag" id="ws-score">Score: 0</div>
+            <div class="ws-tag" id="ws-streak" title="Daily completion streak">🔥 Streak 0</div>
+          </div>
         </div>
 
         <div class="ws-stage">
@@ -29,6 +32,7 @@
 
       this.levelEl = this.root.querySelector('#ws-level');
       this.scoreEl = this.root.querySelector('#ws-score');
+      this.streakEl= this.root.querySelector('#ws-streak');
       this.stageEl = this.root.querySelector('.ws-stage');
       this.gridEl  = this.root.querySelector('.ws-grid');
       this.kbEl    = this.root.querySelector('.ws-kb');
@@ -37,14 +41,16 @@
       this.renderGrid();
       this.renderKeyboard();
       this.bindKeyboard();
-      this.bindKbClicks(); // ✅ bind click listener exactly once per mount
+      this.bindKbClicks(); // single pointer listener
 
       console.log('[Wordscend] UI mounted:', config.rows, 'rows ×', config.cols);
     },
 
-    setHUD(levelText, score){
-      if (this.levelEl) this.levelEl.textContent = levelText;
-      if (this.scoreEl) this.scoreEl.textContent = `Score: ${score}`;
+    // HUD now accepts: levelText ("Level 3/4"), score, streak
+    setHUD(levelText, score, streak){
+      if (this.levelEl)  this.levelEl.textContent  = levelText;
+      if (this.scoreEl)  this.scoreEl.textContent  = `Score: ${score}`;
+      if (this.streakEl) this.streakEl.textContent = `🔥 Streak ${streak ?? 0}`;
     },
 
     /* ---------- Rendering ---------- */
@@ -121,7 +127,6 @@
 
         this.kbEl.appendChild(rowEl);
       });
-      // ❌ Do NOT add the click listener here (avoids duplicate binding)
     },
 
     /* ---------- Input (physical keyboard) ---------- */
@@ -141,7 +146,6 @@
       if (this._kbClickBound) return;
       this._kbClickBound = true;
 
-      // Use pointerup so both mouse and touch feel snappy; prevent double-fire
       this.kbEl.addEventListener('pointerup', (e) => {
         const btn = e.target.closest('.ws-kb-key');
         if (!btn) return;
