@@ -10,26 +10,46 @@
   const AudioFX = {
     _ctx: null,
     _enabled() { return (localStorage.getItem('ws_sound') !== '0'); },
-    _ensure() { if (!this._ctx) { try{ this._ctx = new (window.AudioContext||window.webkitAudioContext)(); }catch{} } },
+    _ensure() {
+      if (!this._ctx) {
+        try { this._ctx = new (window.AudioContext||window.webkitAudioContext)(); }
+        catch {}
+      }
+      return this._ctx;
+    },
+    _resumeIfNeeded() {
+      const ctx = this._ctx;
+      if (!ctx) return;
+      if (ctx.state === 'suspended') { ctx.resume().catch(()=>{}); }
+    },
+    armAutoResumeOnce() {
+      if (this._armed) return;
+      this._armed = true;
+      const resume = () => { if (this._ctx) this._resumeIfNeeded(); };
+      window.addEventListener('pointerdown', resume, { passive:true });
+      window.addEventListener('keydown', resume);
+    },
     ding() {
       if (!this._enabled()) return;
-      this._ensure();
-      if (!this._ctx) return;
-      const ctx = this._ctx;
+      const ctx = this._ensure();
+      if (!ctx) return;
+      this._resumeIfNeeded();
+
       const o = ctx.createOscillator();
       const g = ctx.createGain();
       o.type = 'sine';
       o.frequency.value = 880; // A5
       g.gain.value = 0.08;
       o.connect(g); g.connect(ctx.destination);
+
       const now = ctx.currentTime;
       o.start(now);
-      // quick envelope
-      g.gain.setValueAtTime(0.09, now);
+      g.gain.setValueAtTime(0.10, now);
       g.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
       o.stop(now + 0.2);
     }
   };
+  AudioFX.armAutoResumeOnce();
 
   const UI = {
     mount(rootEl, config) {
@@ -273,12 +293,12 @@
             tile.classList.remove('state-correct','state-present','state-absent');
             tile.classList.add('state-' + mark);
 
-            // Visual points & sound (no score change here)
+            // Visual points & sound, then LIVE score increment on chip landing
             if (mark === 'correct') {
-              this.floatPointsFromTile(tile, '+2', 'green');
+              this.floatPointsFromTile(tile, +2, 'green');
               AudioFX.ding();
             } else if (mark === 'present') {
-              this.floatPointsFromTile(tile, '+1', 'yellow');
+              this.floatPointsFromTile(tile, +1, 'yellow');
             }
           }
         }, delay + 210);
@@ -306,7 +326,7 @@
     },
 
     /* ---------- Floating points chip ---------- */
-    floatPointsFromTile(tileEl, label, color='green'){
+    floatPointsFromTile(tileEl, delta, color='green'){
       try{
         const scoreEl = this.scoreEl;
         if (!tileEl || !scoreEl) return;
@@ -316,20 +336,18 @@
 
         const chip = document.createElement('div');
         chip.className = `ws-fxfloat ${color==='green'?'green':'yellow'}`;
-        chip.textContent = label;
+        chip.textContent = (delta > 0 ? `+${delta}` : `${delta}`);
         // start at tile center
         chip.style.left = `${tRect.left + tRect.width/2}px`;
         chip.style.top  = `${tRect.top  + tRect.height/2}px`;
         chip.style.transform = 'translate(-50%, -50%) scale(1)';
         document.body.appendChild(chip);
 
-        // kick to score center
+        // kick to score center with a nice hop
         requestAnimationFrame(()=>{
-          // Small bezier-ish offset for nicer motion
           const midX = (tRect.left + sRect.left)/2;
-          const midY = Math.min(tRect.top, sRect.top) - 40; // arc up a bit
+          const midY = Math.min(tRect.top, sRect.top) - 40;
 
-          // We’ll approximate the arc with two hops:
           chip.style.transitionTimingFunction = 'cubic-bezier(.22,.82,.25,1)';
           chip.style.left = `${midX}px`;
           chip.style.top  = `${midY}px`;
@@ -343,9 +361,13 @@
           }, 160);
         });
 
-        // clean up and pulse score
+        // clean up and pulse score + LIVE increment
         setTimeout(()=>{
           chip.remove();
+          // live add score via global handler exposed by app.js
+          if (typeof window.WordscendApp_addScore === 'function') {
+            window.WordscendApp_addScore(delta);
+          }
           scoreEl.classList.remove('pulse'); void scoreEl.offsetWidth;
           scoreEl.classList.add('pulse');
           setTimeout(()=>scoreEl.classList.remove('pulse'), 260);
