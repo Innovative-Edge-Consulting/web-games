@@ -97,6 +97,14 @@ body{
 }
 .ws-hud-right{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 
+/* Score pulse when chips land */
+@keyframes ws-pulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
+.ws-tag.pulse { animation: ws-pulse 260ms ease; }
+
 /* ===== Stage wrapper (bubble overlays grid) ===== */
 .ws-stage{
   width:100%;
@@ -277,6 +285,24 @@ body{
 }
 .ws-field label{ font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
 .ws-field input[type="checkbox"]{ width:18px; height:18px; }
+
+/* ===== Floating points chip ===== */
+.ws-fxfloat{
+  position:fixed;
+  z-index:60;
+  pointer-events:none;
+  font:800 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  padding:6px 8px;
+  border-radius:999px;
+  background:#111419;
+  border:1px solid var(--border);
+  color:#fff;
+  box-shadow:0 8px 20px rgba(0,0,0,.45);
+  transition: transform 420ms cubic-bezier(.22,.82,.25,1), opacity 420ms ease, left 420ms ease, top 420ms ease;
+  opacity:.98;
+}
+.ws-fxfloat.green{ background:var(--correct); color:#000; border-color:var(--correct); }
+.ws-fxfloat.yellow{ background:var(--present); color:#000; border-color:var(--present); }
 
 /* ===== Mobile tweaks ===== */
 @media (max-width: 430px){
