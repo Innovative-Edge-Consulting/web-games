@@ -35,7 +35,17 @@
         console.warn('[Wordscend] Failed to fetch DWYL words:', e);
       }
       if (!allowedSet || allowedSet.size === 0) {
-        allowedSet = new Set(['ABOUT','OTHER','WHICH','CRANE','ROUTE','ALERT','TRAIN','PLANT','SHEEP','BRAVE','POINT','CLEAN','WATER','LIGHT']);
+        const fallbackWords = [
+          // 4 letters
+          'GAME','WORD','PLAY','LAMP','MIST','STAR','WIND','HARP',
+          // 5 letters
+          'ABOUT','OTHER','WHICH','CRANE','ROUTE','ALERT','TRAIN','PLANT','SHEEP','BRAVE','POINT','CLEAN','WATER','LIGHT',
+          // 6 letters
+          'BRIDGE','PLANET','GARDEN','FRIEND','MARKET','STREAM','THRIVE','CUSTOM',
+          // 7 letters
+          'BALANCE','CAPTURE','JOURNEY','MOUNTAIN','HARVEST','PHOENIX','LIBRARY','NETWORK'
+        ];
+        allowedSet = new Set(fallbackWords);
       }
       this.allowedSet = allowedSet;
 
@@ -70,8 +80,10 @@
     pickToday(list) {
       const now = new Date();
       const epoch = new Date('2025-01-01T00:00:00Z');
+      if (!list || list.length === 0) return undefined;
       const dayIndex = Math.floor((now - epoch) / 86400000);
-      return list[dayIndex % list.length];
+      const idx = ((dayIndex % list.length) + list.length) % list.length;
+      return list[idx];
     }
   };
 

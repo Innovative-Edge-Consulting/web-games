@@ -40,8 +40,40 @@
     return `${yy}-${mm}-${dd}`;
   }
 
+  function stripTrailingSlash(href) {
+    return href.replace(/\/$/, '');
+  }
+
+  function deriveBaseUrl() {
+    const override = window.WORDSCEND_BASE;
+    if (override) {
+      const resolved = new URL(override, document.baseURI);
+      return stripTrailingSlash(resolved.href);
+    }
+    const baseRef = (document.currentScript && document.currentScript.src) || document.baseURI;
+    try {
+      return stripTrailingSlash(new URL('.', baseRef).href);
+    } catch (_) {
+      return stripTrailingSlash(new URL('.', document.baseURI).href);
+    }
+  }
+
   /* ---------------- Config ---------------- */
-  const BASE = 'https://innovative-edge-consulting.github.io/web-games';
+  const BASE = deriveBaseUrl();
+
+  function assetUrl(path) {
+    const raw = String(path || '');
+    if (raw.startsWith('//')) {
+      return `${location.protocol}${raw}`;
+    }
+    try {
+      return new URL(raw).toString();
+    } catch (_) {
+      const cleanPath = raw.replace(/^\/+/, '');
+      const baseWithSlash = BASE.endsWith('/') ? BASE : `${BASE}/`;
+      return new URL(cleanPath, baseWithSlash).toString();
+    }
+  }
   const ALLOWED_URL = 'https://raw.githubusercontent.com/dwyl/english-words/master/words.txt';
   const SCORE_TABLE = [100, 70, 50, 35, 25, 18];
   const LEVEL_LENGTHS = [4, 5, 6, 7];
@@ -145,13 +177,13 @@
   const store = applyUrlOverrides(store0);
 
   Promise.all([
-    loadScript(`${BASE}/core/engine.js?v=110`),
-    loadScript(`${BASE}/ui/dom-view.js?v=110`),
-    loadScript(`${BASE}/core/dictionary.js?v=110`)
+    loadScript(assetUrl('core/engine.js?v=110')),
+    loadScript(assetUrl('ui/dom-view.js?v=110')),
+    loadScript(assetUrl('core/dictionary.js?v=110'))
   ])
   .then(async () => {
     const { allowedSet } = await window.WordscendDictionary.loadDWYL(ALLOWED_URL, {
-      minLen: 4, maxLen: 7, answersBase: `${BASE}/data`
+      minLen: 4, maxLen: 7, answersBase: assetUrl('data')
     });
 
     const qp = getParams();
