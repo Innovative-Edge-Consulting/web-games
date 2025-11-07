@@ -16,8 +16,10 @@
       this.root.innerHTML = `
         <div class="ws-hud">
           <div class="ws-tag" id="ws-level">Level: -</div>
-          <div class="ws-tag" id="ws-score">Score: 0</div>
-          <div class="ws-tag" id="ws-streak" title="Daily play streak">🔥 Streak 0</div>
+          <div class="ws-hud-right">
+            <div class="ws-tag" id="ws-score">Score: 0</div>
+            <div class="ws-tag" id="ws-streak" title="Daily play streak">🔥 Streak 0</div>
+          </div>
         </div>
 
         <div class="ws-stage">
@@ -42,7 +44,7 @@
       // Bind physical keyboard ONCE per page
       this.bindKeyboard();
 
-      // IMPORTANT: ensure we (re)bind on-screen keyboard EACH mount
+      // Re-bind on-screen keyboard EACH mount (fresh element)
       this._kbClickBound = false;
       this.bindKbClicks();
 
@@ -90,7 +92,6 @@
         }
 
         if (r < cursor.row) rowEl.classList.add('ws-locked');
-
         this.gridEl.appendChild(rowEl);
       }
     },
