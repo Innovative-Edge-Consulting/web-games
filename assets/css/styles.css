@@ -216,3 +216,30 @@ body{
   .ws-kb-row{ gap: 5px; }
   .ws-kb-key{ padding: 10px 8px; min-width: 30px; font-weight: 700; }
 }
+
+/* ===== Mobile tweaks ===== */
+@media (max-width: 430px){
+  :root{ --tileSize: clamp(36px, 10.5vw, 48px); }
+  .ws-kb{ padding: 0 10px; gap: 6px; }
+  .ws-kb-row{ gap: 5px; }
+  .ws-kb-key{ padding: 10px 8px; min-width: 30px; font-weight: 700; }
+}
+
+/* ===== HUD layout tweaks ===== */
+.ws-hud {
+  width:100%;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  max-width:560px;
+}
+.ws-hud-right {
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+@media (max-width:430px){
+  .ws-hud-right { gap:6px; }
+}
