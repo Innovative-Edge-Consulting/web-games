@@ -1,145 +1,150 @@
 // /core/engine.js
 (function (global) {
-  function createEmptyBoard(rows, cols) {
-    return Array.from({ length: rows }, () => Array.from({ length: cols }, () => ''));
+  const STATE = {
+    rows: 6,
+    cols: 5,
+    board: [],
+    rowMarks: [],
+    cursor: { row: 0, col: 0 },
+    done: false,
+    win: false,
+    answer: 'APPLE',
+    allowed: new Set(),
+    keyStatus: {}, // letter -> 'correct' | 'present' | 'absent'
+  };
+
+  function init(cfg) {
+    STATE.rows = cfg.rows || 6;
+    STATE.cols = cfg.cols || 5;
+    STATE.board = Array.from({ length: STATE.rows }, () => Array(STATE.cols).fill(''));
+    STATE.rowMarks = Array.from({ length: STATE.rows }, () => Array(STATE.cols).fill(null));
+    STATE.cursor = { row: 0, col: 0 };
+    STATE.done = false;
+    STATE.win = false;
+    STATE.keyStatus = {};
+    return { rows: STATE.rows, cols: STATE.cols };
   }
 
-  function evaluateGuess(guess, answer) {
-    const res = Array(guess.length).fill('absent');
-    const a = answer.split('');
-    const g = guess.split('');
-    const counts = {};
-    for (const ch of a) counts[ch] = (counts[ch] || 0) + 1;
+  function setAnswer(word) { STATE.answer = (word || '').toUpperCase(); }
+  function setAllowed(set) { STATE.allowed = set || new Set(); }
 
-    // correct
-    for (let i = 0; i < g.length; i++) {
-      if (g[i] === a[i]) {
-        res[i] = 'correct';
+  function getBoard() { return STATE.board.map(r => r.slice()); }
+  function getRowMarks(){ return STATE.rowMarks.map(r => r.slice()); }
+  function getCursor(){ return { row: STATE.cursor.row, col: STATE.cursor.col }; }
+  function isDone(){ return STATE.done; }
+
+  function getKeyStatus(){ return { ...STATE.keyStatus }; }
+
+  function addLetter(ch) {
+    if (STATE.done) return false;
+    ch = (ch || '').toUpperCase();
+    if (!/^[A-Z]$/.test(ch)) return false;
+    const { row, col } = STATE.cursor;
+    if (col >= STATE.cols) return false;
+    STATE.board[row][col] = ch;
+    STATE.cursor.col = Math.min(STATE.cols, col + 1);
+    return true;
+  }
+
+  function backspace() {
+    if (STATE.done) return false;
+    const { row, col } = STATE.cursor;
+    if (col === 0) return false;
+    STATE.cursor.col = col - 1;
+    STATE.board[row][STATE.cursor.col] = '';
+    return true;
+  }
+
+  function evaluateRow(guess) {
+    const ans = STATE.answer.split('');
+    const g = guess.slice();
+
+    // mark counts for answer letters
+    const counts = {};
+    ans.forEach(ch => { counts[ch] = (counts[ch] || 0) + 1; });
+
+    const marks = Array(STATE.cols).fill('absent');
+
+    // First pass: correct
+    for (let i = 0; i < STATE.cols; i++) {
+      if (g[i] === ans[i]) {
+        marks[i] = 'correct';
         counts[g[i]] -= 1;
       }
     }
-    // present
-    for (let i = 0; i < g.length; i++) {
-      if (res[i] === 'correct') continue;
+
+    // Second pass: present
+    for (let i = 0; i < STATE.cols; i++) {
+      if (marks[i] === 'correct') continue;
       const ch = g[i];
       if (counts[ch] > 0) {
-        res[i] = 'present';
+        marks[i] = 'present';
         counts[ch] -= 1;
       }
     }
-    return res;
+    return marks;
   }
 
-  const KEY_RANK = { absent: 0, present: 1, correct: 2 };
-
-  const Engine = {
-    rows: 6,
-    cols: 5,
-    allowedSet: null,
-    answer: 'CRANE',
-
-    init(cfg) {
-      if (cfg && cfg.cols) this.cols = cfg.cols;
-      if (cfg && cfg.rows) this.rows = cfg.rows;
-
-      this.board = createEmptyBoard(this.rows, this.cols);
-      this.currentRow = 0;
-      this.currentCol = 0;
-
-      this.rowMarks = Array.from({ length: this.rows }, () => Array(this.cols).fill(null));
-      this.keyStatus = {}; // { A: 'absent'|'present'|'correct' }
-      this.done = false;
-      this.win = false;
-
-      return this.getConfig();
-    },
-
-    setAllowed(listOrSet){
-      if (!listOrSet) { this.allowedSet = null; return; }
-      if (listOrSet instanceof Set) { this.allowedSet = listOrSet; return; }
-      this.allowedSet = new Set(listOrSet.map(w => w.toUpperCase()));
-    },
-
-    setAnswer(word){
-      if (word) this.answer = word.toUpperCase();
-    },
-
-    getConfig(){ return { rows:this.rows, cols:this.cols }; },
-    getBoard(){ return this.board; },
-    getCursor(){ return { row:this.currentRow, col:this.currentCol }; },
-    getRowMarks(){ return this.rowMarks; },
-    getKeyStatus(){ return this.keyStatus; },
-    isDone(){ return this.done; },
-    didWin(){ return this.win; },
-
-    canType(){ return !this.done && this.currentRow < this.rows; },
-
-    addLetter(ch){
-      if (!this.canType()) return false;
-      if (this.currentCol >= this.cols) return false;
-      if (!/^[A-Za-z]$/.test(ch)) return false;
-      this.board[this.currentRow][this.currentCol] = ch.toUpperCase();
-      this.currentCol += 1;
-      return true;
-    },
-
-    backspace(){
-      if (!this.canType()) return false;
-      if (this.currentCol === 0) return false;
-      this.currentCol -= 1;
-      this.board[this.currentRow][this.currentCol] = '';
-      return true;
-    },
-
-    rowComplete(){
-      return this.board[this.currentRow].every((c) => c && c.length === 1);
-    },
-
-    isAllowedWord(word){
-      if (!this.allowedSet) return true; // dev fallback
-      return this.allowedSet.has(word.toUpperCase());
-    },
-
-    submitRow(){
-      if (this.done) return { ok:false, reason:'done' };
-      if (!this.rowComplete()) return { ok:false, reason:'incomplete' };
-
-      const guess = this.board[this.currentRow].join('').toUpperCase();
-
-      if (!this.isAllowedWord(guess)) {
-        return { ok:false, reason:'invalid' };
+  function updateKeyStatus(guess, marks) {
+    for (let i = 0; i < guess.length; i++) {
+      const ch = guess[i];
+      const mark = marks[i];
+      const current = STATE.keyStatus[ch];
+      if (mark === 'correct') {
+        STATE.keyStatus[ch] = 'correct';
+      } else if (mark === 'present') {
+        if (current !== 'correct') STATE.keyStatus[ch] = 'present';
+      } else { // absent
+        if (!current) STATE.keyStatus[ch] = 'absent';
       }
-
-      const marks = evaluateGuess(guess, this.answer);
-      this.rowMarks[this.currentRow] = marks.slice();
-
-      // update keyboard states with precedence
-      for (let i = 0; i < guess.length; i++) {
-        const ch = guess[i];
-        const m = marks[i];
-        const prev = this.keyStatus[ch] ?? 'absent';
-        if (KEY_RANK[m] > KEY_RANK[prev]) this.keyStatus[ch] = m;
-        else if (!(ch in this.keyStatus)) this.keyStatus[ch] = m;
-      }
-
-      const attempt = this.currentRow + 1;
-
-      if (guess === this.answer) {
-        this.done = true; this.win = true;
-        return { ok:true, guess, marks, win:true, done:true, attempt };
-      }
-
-      this.currentRow += 1;
-      this.currentCol = 0;
-
-      if (this.currentRow >= this.rows) {
-        this.done = true; this.win = false;
-        return { ok:true, guess, marks, win:false, done:true, attempt };
-      }
-      return { ok:true, guess, marks, win:false, done:false, attempt };
     }
-  };
+  }
 
-  global.WordscendEngine = Engine;
-  console.log('[Wordscend] Engine loaded (awaiting init).');
+  function submitRow() {
+    if (STATE.done) return { ok:false, reason:'done' };
+
+    const row = STATE.cursor.row;
+    if (STATE.cursor.col < STATE.cols) {
+      return { ok:false, reason:'incomplete', attempt: row+1 };
+    }
+
+    const guess = STATE.board[row].join('');
+    if (!STATE.allowed.has(guess)) {
+      return { ok:false, reason:'invalid', attempt: row+1 };
+    }
+
+    const marks = evaluateRow(STATE.board[row]);
+    STATE.rowMarks[row] = marks.slice();
+    updateKeyStatus(STATE.board[row], marks);
+
+    const win = marks.every(m => m === 'correct');
+    let done = false;
+
+    if (win) {
+      STATE.done = true;
+      STATE.win = true;
+      done = true;
+    } else if (row === STATE.rows - 1) {
+      STATE.done = true;
+      STATE.win = false;
+      done = true;
+    } else {
+      STATE.cursor = { row: row + 1, col: 0 };
+    }
+
+    return {
+      ok: true,
+      attempt: row + 1,
+      done,
+      win: win,
+      marks: marks.slice()
+    };
+  }
+
+  global.WordscendEngine = {
+    init, setAnswer, setAllowed,
+    getBoard, getRowMarks, getCursor, isDone,
+    addLetter, backspace, submitRow,
+    getKeyStatus
+  };
 })(window);
