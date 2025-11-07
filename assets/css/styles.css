@@ -6,7 +6,7 @@
   --muted:#a5b3a8;
   --border:#2a2d31;
 
-  --tileSize: clamp(42px, min(9.5vw, (100vw - 64px)/7), 56px);
+  --tileSize: clamp(40px, min(9.2vw, (100vw - 64px)/7), 56px);
 
   --correct:#2ea043; /* green */
   --present:#e3b341; /* yellow */
@@ -21,7 +21,7 @@ body{
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
 }
 
-/* Stage centers everything and allows absolute overlay */
+/* Stage centers everything */
 #game{
   width:100%;
   max-width:720px;
@@ -31,7 +31,6 @@ body{
   flex-direction:column;
   align-items:center;
   gap:16px;
-  position:relative; /* for bubble overlay */
 }
 
 /* ===== HUD ===== */
@@ -52,6 +51,17 @@ body{
   color:var(--text);
 }
 
+/* ===== Stage wrapper (bubble overlays grid) ===== */
+.ws-stage{
+  width:100%;
+  max-width:560px;
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:12px;
+}
+
 /* ===== Grid ===== */
 .ws-grid{
   display:grid;
@@ -61,7 +71,6 @@ body{
 .ws-row{
   display:grid;
   gap:8px;
-  /* columns set inline by JS based on word length */
 }
 .ws-tile{
   width:var(--tileSize);
@@ -85,7 +94,7 @@ body{
 /* Submitted colors */
 .ws-tile.state-correct{ background:var(--correct); border-color:var(--correct); color:#000; }
 .ws-tile.state-present{ background:var(--present); border-color:var(--present); color:#000; }
-/* ✅ thin black border for incorrect */
+/* thin black border for incorrect */
 .ws-tile.state-absent{  background:var(--absent);  border-color:#000; color:#fff; }
 
 /* Flip animation */
@@ -95,9 +104,7 @@ body{
   51%  { transform: rotateX(90deg); }
   100% { transform: rotateX(0); }
 }
-.ws-tile.flip {
-  animation: ws-flip-1 420ms ease var(--flip-delay, 0ms) both;
-}
+.ws-tile.flip { animation: ws-flip-1 420ms ease var(--flip-delay, 0ms) both; }
 
 /* Shake for errors */
 @keyframes ws-shake{
@@ -112,6 +119,9 @@ body{
   margin-top:8px;
   display:grid;
   gap:8px;
+  width:100%;
+  padding: 0 12px;                /* ✅ side padding on mobile */
+  -webkit-tap-highlight-color: transparent;
 }
 .ws-kb-row{
   display:grid;
@@ -129,6 +139,7 @@ body{
   color:var(--text);
   cursor:pointer;
   user-select:none;
+  touch-action:manipulation;      /* better mobile tap behavior */
 }
 .ws-kb-key:active{ transform:translateY(1px) }
 .ws-kb-enter{ padding:12px 14px }
@@ -139,11 +150,12 @@ body{
 .ws-kb-key.k-present{ background:var(--present); border-color:var(--present); color:#000; }
 .ws-kb-key.k-absent{  background:var(--absent);  border-color:#000;  color:#fff; }
 
-/* ===== Bubble message (overlay) ===== */
+/* ===== Bubble message ===== */
 .ws-bubble{
   position:absolute;
-  top:-10px; left:50%;
-  transform:translate(-50%, -100%);
+  left:50%;
+  top:0;
+  transform:translate(-50%, -12px);
   background:#111419;
   color:var(--text);
   border:1px solid var(--border);
@@ -159,5 +171,48 @@ body{
 }
 .ws-bubble.show{
   opacity:1;
-  transform:translate(-50%, -120%);
+  transform:translate(-50%, -24px);
+}
+
+/* ===== End Card ===== */
+.ws-endcard{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.6);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:50;
+}
+.ws-endcard .card{
+  width:min(92vw, 520px);
+  background:#111419;
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:20px;
+  box-shadow:0 12px 32px rgba(0,0,0,.45);
+}
+.ws-endcard h3{
+  margin:0 0 10px 0;
+  font:700 20px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+}
+.ws-endcard p{ margin:6px 0; color:var(--muted) }
+.ws-endcard .row{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap }
+.ws-btn{
+  border:1px solid var(--border);
+  background:#12161a;
+  color:var(--text);
+  border-radius:10px;
+  padding:10px 12px;
+  font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  cursor:pointer;
+}
+.ws-btn.primary{ background:var(--brand); color:#fff; border-color:var(--brand) }
+
+/* ===== Mobile tweaks ===== */
+@media (max-width: 430px){
+  :root{ --tileSize: clamp(36px, 10.5vw, 48px); }
+  .ws-kb{ padding: 0 10px; gap: 6px; }
+  .ws-kb-row{ gap: 5px; }
+  .ws-kb-key{ padding: 10px 8px; min-width: 30px; font-weight: 700; }
 }
