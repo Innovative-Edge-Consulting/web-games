@@ -36,9 +36,8 @@ body{
 /* ===== HUD ===== */
 .ws-hud{
   width:100%;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(120px, 1fr));
   gap:12px;
   max-width:560px;
 }
@@ -49,8 +48,8 @@ body{
   border-radius:10px;
   background:#111419;
   color:var(--text);
+  text-align:center;
 }
-.ws-hud-right{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 
 /* ===== Stage wrapper (bubble overlays grid) ===== */
 .ws-stage{
