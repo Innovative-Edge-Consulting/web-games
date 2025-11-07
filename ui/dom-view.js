@@ -12,27 +12,13 @@
       this.root = rootEl;
       this.config = config;
 
-      // Topbar + HUD + Stage + Keyboard
+      // Topbar (brand + actions) + HUD + Stage + Keyboard
       this.root.innerHTML = `
         <div class="ws-topbar">
           <div class="ws-topbar-inner">
             <div class="ws-brand" role="banner" aria-label="Wordscend">
               <span class="dot"></span> Wordscend
             </div>
-
-            <nav class="ws-nav" aria-label="Site">
-              <div class="ws-menu" id="ws-menu">
-                <button class="menu-btn ws-btn" type="button" aria-haspopup="true" aria-expanded="false">
-                  More Games ▾
-                </button>
-                <div class="menu" role="menu" aria-label="More Games">
-                  <a href="https://leashfree.ca/games" role="menuitem">Games Hub</a>
-                  <a href="https://leashfree.ca/dog-name-finder" role="menuitem">Dog Name Finder</a>
-                  <a href="https://leashfree.ca/resources/dog-calorie-calculator" role="menuitem">Calorie Calculator</a>
-                </div>
-              </div>
-            </nav>
-
             <div class="ws-actions">
               <button class="icon-btn" id="ws-info" type="button" title="How to play" aria-label="How to play">
                 <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M12 8.5h.01M11 11.5h1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -94,22 +80,9 @@
 
     /* ---------- Header ---------- */
     bindHeader(){
-      const menu = this.root.querySelector('#ws-menu');
       const info = this.root.querySelector('#ws-info');
       const settings = this.root.querySelector('#ws-settings');
-
-      // Dropdown
-      const toggle = () => {
-        const open = menu.classList.toggle('open');
-        menu.querySelector('.menu-btn').setAttribute('aria-expanded', open ? 'true' : 'false');
-      };
-      menu.querySelector('.menu-btn').addEventListener('click', (e)=>{ e.stopPropagation(); toggle(); });
-      document.addEventListener('click', ()=> menu.classList.remove('open'));
-
-      // Info (Rules)
       info.addEventListener('click', ()=> this.showRulesModal());
-
-      // Settings
       settings.addEventListener('click', ()=> this.showSettingsModal());
     },
 
@@ -147,7 +120,6 @@
         }
 
         if (r < cursor.row) rowEl.classList.add('ws-locked');
-
         this.gridEl.appendChild(rowEl);
       }
     },
@@ -378,7 +350,6 @@
       document.querySelector('.ws-modal')?.remove();
       const wrap = document.createElement('div');
       wrap.className = 'ws-modal';
-      // simple local settings stub (persists in localStorage by app.js if desired later)
       const sound = localStorage.getItem('ws_sound') !== '0';
       const colorblind = localStorage.getItem('ws_colorblind') === '1';
       wrap.innerHTML = `
