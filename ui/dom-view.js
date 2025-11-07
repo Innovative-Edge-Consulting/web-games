@@ -12,19 +12,24 @@
       this.root = rootEl;
       this.config = config;
 
-      // Build stage
+      // Build structure
       this.root.innerHTML = `
         <div class="ws-hud">
           <div class="ws-tag" id="ws-level">Level: -</div>
           <div class="ws-tag" id="ws-score">Score: 0</div>
         </div>
-        <div class="ws-grid" aria-label="Game grid"></div>
+
+        <div class="ws-stage">
+          <div class="ws-bubble" id="ws-bubble"></div>
+          <div class="ws-grid" aria-label="Game grid"></div>
+        </div>
+
         <div class="ws-kb" aria-label="On-screen keyboard"></div>
-        <div class="ws-bubble" id="ws-bubble"></div>
       `;
 
       this.levelEl = this.root.querySelector('#ws-level');
       this.scoreEl = this.root.querySelector('#ws-score');
+      this.stageEl = this.root.querySelector('.ws-stage');
       this.gridEl  = this.root.querySelector('.ws-grid');
       this.kbEl    = this.root.querySelector('.ws-kb');
       this.bubble  = this.root.querySelector('#ws-bubble');
@@ -160,15 +165,11 @@
         // Flip animation on the submitted row
         this.flipRevealRow(res.attempt - 1, res.marks);
 
-        // re-render keyboard now (grid will update when flip finishes)
+        // Update keyboard now; grid will re-render after flip
         this.renderKeyboard();
 
         if (res.done) {
-          // Grid final re-render after flips
           setTimeout(() => this.renderGrid(), 420 + (this.config.cols - 1) * 80);
-
-          if (res.win) this.showBubble('Nice! You got it.');
-          else this.showBubble('Out of tries.');
         }
         return;
       }
@@ -185,18 +186,15 @@
         const delay = i * 80; // stagger
         tile.style.setProperty('--flip-delay', `${delay}ms`);
         tile.classList.add('flip');
-
-        // When half flip passes, swap to state class
         setTimeout(() => {
           const mark = marks[i];
           if (mark) {
             tile.classList.remove('state-correct','state-present','state-absent');
             tile.classList.add('state-' + mark);
           }
-        }, delay + 210); // mid-flip
+        }, delay + 210);
       });
 
-      // After flips complete, re-render to lock the row visually
       setTimeout(() => this.renderGrid(), 420 + (tiles.length - 1) * 80);
     },
 
@@ -217,6 +215,47 @@
       this.bubble.classList.add('show');
       clearTimeout(this._bT);
       this._bT = setTimeout(() => this.bubble.classList.remove('show'), 1400);
+    },
+
+    showEndCard(score, streakCurrent = 0, streakBest = 0) {
+      const old = document.querySelector('.ws-endcard');
+      if (old) old.remove();
+
+      const wrap = document.createElement('div');
+      wrap.className = 'ws-endcard';
+      wrap.innerHTML = `
+        <div class="card">
+          <h3>Daily Wordscend Complete 🎉</h3>
+          <p>Your total score: <strong>${score}</strong></p>
+          <p>Streak: <strong>${streakCurrent}</strong> day(s) • Best: <strong>${streakBest}</strong></p>
+          <div class="row">
+            <button class="ws-btn primary" data-action="share">Share Score</button>
+            <button class="ws-btn" data-action="copy">Copy Score</button>
+            <button class="ws-btn" data-action="close">Close</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(wrap);
+
+      const shareText = `I just finished today's Wordscend (4→7 letters) with ${score} points! Streak: ${streakCurrent} (best ${streakBest}).`;
+      wrap.addEventListener('click', async (e) => {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+        const act = btn.dataset.action;
+        if (act === 'close') wrap.remove();
+        if (act === 'copy') {
+          try { await navigator.clipboard.writeText(shareText); btn.textContent = 'Copied!'; }
+          catch { btn.textContent = 'Copy failed'; }
+        }
+        if (act === 'share') {
+          if (navigator.share) {
+            try { await navigator.share({ text: shareText }); } catch{}
+          } else {
+            try { await navigator.clipboard.writeText(shareText); btn.textContent = 'Copied!'; }
+            catch { btn.textContent = 'Share not supported'; }
+          }
+        }
+      }, { passive:true });
     }
   };
 
