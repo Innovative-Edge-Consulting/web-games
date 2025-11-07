@@ -131,7 +131,22 @@
     }
   }
 
-  function saveStore(s){ localStorage.setItem(STORE_KEY, JSON.stringify(s)); }
+  function safeGet(key, fallback = null) {
+    try {
+      return localStorage.getItem(key);
+    } catch (err) {
+      console.warn('[Wordscend] localStorage.getItem failed for', key, err);
+      return fallback;
+    }
+  }
+
+  function saveStore(s){
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(s));
+    } catch (err) {
+      console.warn('[Wordscend] Could not persist store:', err);
+    }
+  }
 
   // Mark the day as "played" the first time a VALID guess is submitted today
   function markPlayedToday(store) {
@@ -202,7 +217,7 @@
     await startLevel(store.levelIndex);
 
     // Intro Card — once per user, or force via ?intro=1
-    const introSeen = (localStorage.getItem('ws_intro_seen') === '1');
+    const introSeen = (safeGet('ws_intro_seen') === '1');
     if (qp.intro === '1' || !introSeen) {
       window.WordscendUI.showIntroCard();
     }
