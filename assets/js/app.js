@@ -44,7 +44,7 @@
   /* ---------------- Config ---------------- */
   const BASE = 'https://innovative-edge-consulting.github.io/web-games';
   const ALLOWED_URL = 'https://raw.githubusercontent.com/dwyl/english-words/master/words.txt';
-  const SCORE_TABLE = [100, 70, 50, 35, 25, 18];
+  const SCORE_TABLE = [100, 70, 50, 35, 25, 18]; // per-level bonus
   const LEVEL_LENGTHS = [4, 5, 6, 7];
   const STORE_KEY = 'wordscend_v3';
 
@@ -129,6 +129,20 @@
   const store0 = loadStore();
   const store = applyUrlOverrides(store0);
 
+  // Global live-score hook used by UI chips
+  window.WordscendApp_addScore = function(delta){
+    try {
+      const d = Number(delta || 0);
+      if (!isFinite(d) || d === 0) return;
+      store.score = Math.max(0, (store.score || 0) + d);
+      saveStore(store);
+      // Refresh HUD immediately
+      if (window.WordscendUI) {
+        window.WordscendUI.setHUD(`Level ${store.levelIndex+1}/4`, store.score, store.streak.current);
+      }
+    } catch {}
+  };
+
   Promise.all([
     loadScript(`${BASE}/core/engine.js?v=header-1`),
     loadScript(`${BASE}/ui/dom-view.js?v=header-1`),
@@ -158,6 +172,7 @@
 
     /* ------------ functions ------------ */
     async function startLevel(idx){
+      const LEVEL_LENGTHS = [4,5,6,7];
       const levelLen = LEVEL_LENGTHS[idx];
 
       const curated = window.WordscendDictionary.answersOfLength(levelLen);
@@ -189,6 +204,8 @@
           if (res.win) {
             const attempt = res.attempt ?? 6;
             const gained = SCORE_TABLE[Math.min(Math.max(attempt,1),6) - 1] || 0;
+
+            // Add per-level bonus on top of live chip points
             store.score += gained;
             saveStore(store);
 
@@ -198,8 +215,8 @@
             const isLast = (idx === LEVEL_LENGTHS.length - 1);
             setTimeout(() => {
               if (isLast) {
-                // End card + reset level/score for next daily run (streak persists)
                 window.WordscendUI.showEndCard(store.score, store.streak.current, store.streak.best);
+                // Reset score/level for next day’s run (streak persists)
                 store.day = todayKey();
                 store.score = 0;
                 store.levelIndex = 0;
