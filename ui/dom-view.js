@@ -6,6 +6,31 @@
     ['Enter','Z','X','C','V','B','N','M','Back']
   ];
 
+  /* ---------- Tiny sound (green only) ---------- */
+  const AudioFX = {
+    _ctx: null,
+    _enabled() { return (localStorage.getItem('ws_sound') !== '0'); },
+    _ensure() { if (!this._ctx) { try{ this._ctx = new (window.AudioContext||window.webkitAudioContext)(); }catch{} } },
+    ding() {
+      if (!this._enabled()) return;
+      this._ensure();
+      if (!this._ctx) return;
+      const ctx = this._ctx;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.value = 880; // A5
+      g.gain.value = 0.08;
+      o.connect(g); g.connect(ctx.destination);
+      const now = ctx.currentTime;
+      o.start(now);
+      // quick envelope
+      g.gain.setValueAtTime(0.09, now);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+      o.stop(now + 0.2);
+    }
+  };
+
   const UI = {
     mount(rootEl, config) {
       if (!rootEl) { console.warn('[Wordscend] No mount element provided.'); return; }
@@ -24,7 +49,7 @@
                 <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M12 8.5h.01M11 11.5h1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
               </button>
               <button class="icon-btn" id="ws-settings" type="button" title="Settings" aria-label="Settings">
-                <svg viewBox="0 0 24 24" fill="none"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.5"/><path d="M19 12a7 7 0 0 0-.09-1.09l2.02-1.57-2-3.46-2.43.98a7.03 7.03 0 0 0-1.88-1.09l-.31-2.6h-4l-.31 2.6c-.67.25-1.3.61-1.88 1.09l-2.43-.98-2 3.46 2.02 1.57A7.1 7.1 0 0 0 5 12c0 .37.03.73.09 1.09l-2.02 1.57 2 3.46 2.43-.98c.58.48 1.21.84 1.88 1.09l.31 2.6h4l.31-2.6c.67-.25 1.3-.61 1.88-1.09l2.43.98 2-3.46-2.02-1.57c.06-.36.09-.72.09-1.09Z" stroke="currentColor" stroke-width="1.5"/></svg>
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.5"/><path d="M19 12a7 7 0 0 0-.09-1.09l2.02-1.57-2-3.46-2.43.98a7.03 7.03 0 0 0-1.88-1.09l-.31-2.6h-4l-.31-2.6c-.67.25-1.3.61-1.88 1.09l-2.43-.98-2 3.46 2.02 1.57A7.1 7.1 0 0 0 5 12c0 .37.03.73.09 1.09l-2.02 1.57 2 3.46 2.43-.98c.58.48 1.21.84 1.88 1.09l.31 2.6h4l.31-2.6c.67-.25 1.3-.61 1.88-1.09l2.43.98 2-3.46-2.02-1.57c.06-.36.09-.72.09-1.09Z" stroke="currentColor" stroke-width="1.5"/></svg>
               </button>
             </div>
           </div>
@@ -241,11 +266,20 @@
         const delay = i * 80; // stagger
         tile.style.setProperty('--flip-delay', `${delay}ms`);
         tile.classList.add('flip');
+
         setTimeout(() => {
           const mark = marks[i];
           if (mark) {
             tile.classList.remove('state-correct','state-present','state-absent');
             tile.classList.add('state-' + mark);
+
+            // Visual points & sound (no score change here)
+            if (mark === 'correct') {
+              this.floatPointsFromTile(tile, '+2', 'green');
+              AudioFX.ding();
+            } else if (mark === 'present') {
+              this.floatPointsFromTile(tile, '+1', 'yellow');
+            }
           }
         }, delay + 210);
       });
@@ -269,6 +303,54 @@
       this.bubble.classList.add('show');
       clearTimeout(this._bT);
       this._bT = setTimeout(() => this.bubble.classList.remove('show'), 1400);
+    },
+
+    /* ---------- Floating points chip ---------- */
+    floatPointsFromTile(tileEl, label, color='green'){
+      try{
+        const scoreEl = this.scoreEl;
+        if (!tileEl || !scoreEl) return;
+
+        const tRect = tileEl.getBoundingClientRect();
+        const sRect = scoreEl.getBoundingClientRect();
+
+        const chip = document.createElement('div');
+        chip.className = `ws-fxfloat ${color==='green'?'green':'yellow'}`;
+        chip.textContent = label;
+        // start at tile center
+        chip.style.left = `${tRect.left + tRect.width/2}px`;
+        chip.style.top  = `${tRect.top  + tRect.height/2}px`;
+        chip.style.transform = 'translate(-50%, -50%) scale(1)';
+        document.body.appendChild(chip);
+
+        // kick to score center
+        requestAnimationFrame(()=>{
+          // Small bezier-ish offset for nicer motion
+          const midX = (tRect.left + sRect.left)/2;
+          const midY = Math.min(tRect.top, sRect.top) - 40; // arc up a bit
+
+          // We’ll approximate the arc with two hops:
+          chip.style.transitionTimingFunction = 'cubic-bezier(.22,.82,.25,1)';
+          chip.style.left = `${midX}px`;
+          chip.style.top  = `${midY}px`;
+          chip.style.transform = 'translate(-50%, -50%) scale(1.05)';
+
+          setTimeout(()=>{
+            chip.style.left = `${sRect.left + sRect.width/2}px`;
+            chip.style.top  = `${sRect.top  + sRect.height/2}px`;
+            chip.style.transform = 'translate(-50%, -50%) scale(0.8)';
+            chip.style.opacity = '0.0';
+          }, 160);
+        });
+
+        // clean up and pulse score
+        setTimeout(()=>{
+          chip.remove();
+          scoreEl.classList.remove('pulse'); void scoreEl.offsetWidth;
+          scoreEl.classList.add('pulse');
+          setTimeout(()=>scoreEl.classList.remove('pulse'), 260);
+        }, 480);
+      }catch{}
     },
 
     showEndCard(score, streakCurrent = 0, streakBest = 0) {
