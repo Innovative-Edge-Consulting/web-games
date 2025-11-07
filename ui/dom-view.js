@@ -37,6 +37,7 @@
       this.renderGrid();
       this.renderKeyboard();
       this.bindKeyboard();
+      this.bindKbClicks(); // ✅ bind click listener exactly once per mount
 
       console.log('[Wordscend] UI mounted:', config.rows, 'rows ×', config.cols);
     },
@@ -97,6 +98,7 @@
           const btn = document.createElement('button');
           btn.className = 'ws-kb-key';
           btn.type = 'button';
+          btn.tabIndex = 0;
 
           if (key === 'Enter') {
             btn.classList.add('ws-kb-enter');
@@ -119,25 +121,34 @@
 
         this.kbEl.appendChild(rowEl);
       });
-
-      // Click handling (one listener on the container)
-      this.kbEl.addEventListener('click', (e) => {
-        const btn = e.target.closest('.ws-kb-key');
-        if (!btn) return;
-        this.handleInput(btn.dataset.key);
-      }, { passive: true });
+      // ❌ Do NOT add the click listener here (avoids duplicate binding)
     },
 
-    /* ---------- Input ---------- */
+    /* ---------- Input (physical keyboard) ---------- */
     bindKeyboard() {
-      if (this._bound) return;
-      this._bound = true;
+      if (this._keyBound) return;
+      this._keyBound = true;
 
       window.addEventListener('keydown', (e) => {
         const tag = (e.target && e.target.tagName || '').toLowerCase();
         if (tag === 'input' || tag === 'textarea' || e.metaKey || e.ctrlKey || e.altKey) return;
         this.handleInput(e.key);
       });
+    },
+
+    /* ---------- Input (on-screen keyboard clicks/taps) ---------- */
+    bindKbClicks() {
+      if (this._kbClickBound) return;
+      this._kbClickBound = true;
+
+      // Use pointerup so both mouse and touch feel snappy; prevent double-fire
+      this.kbEl.addEventListener('pointerup', (e) => {
+        const btn = e.target.closest('.ws-kb-key');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.handleInput(btn.dataset.key);
+      }, { passive: false });
     },
 
     handleInput(key) {
