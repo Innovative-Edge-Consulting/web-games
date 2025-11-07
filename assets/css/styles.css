@@ -50,6 +50,7 @@ body{
   background:#111419;
   color:var(--text);
 }
+.ws-hud-right{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 
 /* ===== Stage wrapper (bubble overlays grid) ===== */
 .ws-stage{
@@ -94,7 +95,6 @@ body{
 /* Submitted colors */
 .ws-tile.state-correct{ background:var(--correct); border-color:var(--correct); color:#000; }
 .ws-tile.state-present{ background:var(--present); border-color:var(--present); color:#000; }
-/* thin black border for incorrect */
 .ws-tile.state-absent{  background:var(--absent);  border-color:#000; color:#fff; }
 
 /* Flip animation */
@@ -120,7 +120,7 @@ body{
   display:grid;
   gap:8px;
   width:100%;
-  padding: 0 12px;                /* ✅ side padding on mobile */
+  padding: 0 12px;                /* side padding on mobile */
   -webkit-tap-highlight-color: transparent;
 }
 .ws-kb-row{
@@ -139,7 +139,7 @@ body{
   color:var(--text);
   cursor:pointer;
   user-select:none;
-  touch-action:manipulation;      /* better mobile tap behavior */
+  touch-action:manipulation;
 }
 .ws-kb-key:active{ transform:translateY(1px) }
 .ws-kb-enter{ padding:12px 14px }
@@ -174,8 +174,9 @@ body{
   transform:translate(-50%, -24px);
 }
 
-/* ===== End Card ===== */
-.ws-endcard{
+/* ===== Modals: End Card & Intro Card ===== */
+.ws-endcard,
+.ws-intro{
   position:fixed;
   inset:0;
   background:rgba(0,0,0,.6);
@@ -184,7 +185,8 @@ body{
   justify-content:center;
   z-index:50;
 }
-.ws-endcard .card{
+.ws-endcard .card,
+.ws-intro .card{
   width:min(92vw, 520px);
   background:#111419;
   border:1px solid var(--border);
@@ -192,12 +194,15 @@ body{
   padding:20px;
   box-shadow:0 12px 32px rgba(0,0,0,.45);
 }
-.ws-endcard h3{
+.ws-endcard h3,
+.ws-intro h3{
   margin:0 0 10px 0;
   font:700 20px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
 }
-.ws-endcard p{ margin:6px 0; color:var(--muted) }
-.ws-endcard .row{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap }
+.ws-endcard p,
+.ws-intro p{ margin:6px 0; color:var(--muted) }
+.ws-endcard .row,
+.ws-intro .row{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap }
 .ws-btn{
   border:1px solid var(--border);
   background:#12161a;
@@ -209,13 +214,18 @@ body{
 }
 .ws-btn.primary{ background:var(--brand); color:#fff; border-color:var(--brand) }
 
-/* ===== Mobile tweaks ===== */
-@media (max-width: 430px){
-  :root{ --tileSize: clamp(36px, 10.5vw, 48px); }
-  .ws-kb{ padding: 0 10px; gap: 6px; }
-  .ws-kb-row{ gap: 5px; }
-  .ws-kb-key{ padding: 10px 8px; min-width: 30px; font-weight: 700; }
+/* Mini example tiles inside intro */
+.ws-mini-row{
+  display:grid; grid-auto-flow:column; gap:6px; margin-top:8px;
 }
+.ws-mini-tile{
+  width:28px; height:28px; border-radius:6px; display:grid; place-items:center;
+  font:700 12px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; text-transform:uppercase;
+  border:1px solid #000;
+}
+.ws-mini-tile.correct{ background:var(--correct); color:#000; border-color:var(--correct); }
+.ws-mini-tile.present{ background:var(--present); color:#000; border-color:var(--present); }
+.ws-mini-tile.absent{  background:var(--absent);  color:#fff; border-color:#000; }
 
 /* ===== Mobile tweaks ===== */
 @media (max-width: 430px){
@@ -223,23 +233,5 @@ body{
   .ws-kb{ padding: 0 10px; gap: 6px; }
   .ws-kb-row{ gap: 5px; }
   .ws-kb-key{ padding: 10px 8px; min-width: 30px; font-weight: 700; }
-}
-
-/* ===== HUD layout tweaks ===== */
-.ws-hud {
-  width:100%;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:12px;
-  max-width:560px;
-}
-.ws-hud-right {
-  display:flex;
-  gap:8px;
-  align-items:center;
-  flex-wrap:wrap;
-}
-@media (max-width:430px){
-  .ws-hud-right { gap:6px; }
+  .ws-endcard .card, .ws-intro .card { padding:16px; }
 }
