@@ -112,7 +112,10 @@
                 <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M12 8.5h.01M11 11.5h1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
               </button>
               <button class="icon-btn" id="ws-settings" type="button" title="Settings" aria-label="Settings">
-                <svg viewBox="0 0 24 24" fill="none"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.5"/><path d="M19 12a7 7 0 0 0-.09-1.09l2.02-1.57-2-3.46-2.43.98a7.03 7.03 0 0 0-1.88-1.09l-.31-2.6h-4l-.31-2.6c-.67.25-1.3.61-1.88 1.09l-2.43-.98-2 3.46 2.02 1.57c.06-.36.09-.72.09-1.09Z" stroke="currentColor" stroke-width="1.5"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M19.4 13.1a7.9 7.9 0 0 0 0-2.2l2-1.5-1.6-2.7-2.4.9a8 8 0 0 0-1.9-1.1l-.3-2.5h-3.2l-.3 2.5c-.7.2-1.3.6-1.9 1.1l-2.4-.9-1.6 2.7 2 1.5a7.9 7.9 0 0 0 0 2.2l-2 1.5 1.6 2.7 2.4-.9c.6.5 1.2.8 1.9 1.1l.3 2.5h3.2l.3-2.5c.7-.2 1.3-.6 1.9-1.1l2.4.9 1.6-2.7-2-1.5Z" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
               </button>
             </div>
           </div>

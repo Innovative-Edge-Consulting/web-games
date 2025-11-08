@@ -91,15 +91,28 @@ body{
   align-items:center;
   gap:8px;
 }
+/* Icon button hit-area + centering */
 .icon-btn{
   display:grid; place-items:center;
-  width:36px; height:36px;
+  width:38px; height:38px;           /* was 36x36 */
+  padding:4px;                       /* adds inner breathing room */
+  box-sizing:border-box;             /* ensures padding doesn't shrink the icon */
   border-radius:10px;
   border:1px solid var(--border);
   background:var(--btnBg);
   cursor:pointer;
 }
-.icon-btn svg{ width:18px; height:18px; stroke:currentColor; color:var(--text); }
+
+/* Ensure the svg never gets cropped */
+.icon-btn svg{
+  width:20px;                        /* was 18 */
+  height:20px;                       /* was 18 */
+  stroke:currentColor;
+  color:var(--text);
+  overflow:visible;                  /* avoids edge clipping with round caps */
+  stroke-linecap:round;              /* smoother edges */
+  stroke-linejoin:round;
+}
 
 /* ===================== HUD ===================== */
 #game{
