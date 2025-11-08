@@ -6,6 +6,46 @@
     ['Enter','Z','X','C','V','B','N','M','Back']
   ];
 
+  /* ---------- Theme helpers ---------- */
+  const Theme = {
+    media: null,
+    current: null,
+    getPref() { return localStorage.getItem('ws_theme') || 'dark'; },
+    setPref(v){ try{ localStorage.setItem('ws_theme', v); }catch{} },
+    systemIsDark(){ 
+      this.media = this.media || window.matchMedia('(prefers-color-scheme: dark)');
+      return this.media.matches;
+    },
+    apply(pref) {
+      this.current = pref;
+      const el = document.documentElement;
+      if (pref === 'auto') {
+        el.setAttribute('data-theme', this.systemIsDark() ? 'dark':'light');
+        this.listenSystem();
+      } else {
+        el.setAttribute('data-theme', pref);
+        this.unlistenSystem();
+      }
+    },
+    listenSystem(){
+      this.media = this.media || window.matchMedia('(prefers-color-scheme: dark)');
+      if (!this._bound){
+        this._bound = (e)=> {
+          if (this.current === 'auto') {
+            document.documentElement.setAttribute('data-theme', e.matches ? 'dark':'light');
+          }
+        };
+        this.media.addEventListener?.('change', this._bound);
+      }
+    },
+    unlistenSystem(){
+      if (this.media && this._bound){
+        this.media.removeEventListener?.('change', this._bound);
+      }
+      this._bound = null;
+    }
+  };
+
   /* ---------- Tiny sound (green only) ---------- */
   const AudioFX = {
     _ctx: null,
@@ -57,6 +97,9 @@
       this.root = rootEl;
       this.config = config;
 
+      // Ensure theme is applied on mount too (app.js also pre-applies to avoid flash)
+      Theme.apply(Theme.getPref());
+
       // Topbar (brand + actions) + HUD + Stage + Keyboard
       this.root.innerHTML = `
         <div class="ws-topbar">
@@ -69,7 +112,7 @@
                 <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M12 8.5h.01M11 11.5h1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
               </button>
               <button class="icon-btn" id="ws-settings" type="button" title="Settings" aria-label="Settings">
-                <svg viewBox="0 0 24 24" fill="none"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.5"/><path d="M19 12a7 7 0 0 0-.09-1.09l2.02-1.57-2-3.46-2.43.98a7.03 7.03 0 0 0-1.88-1.09l-.31-2.6h-4l-.31-2.6c-.67.25-1.3.61-1.88 1.09l-2.43-.98-2 3.46 2.02 1.57A7.1 7.1 0 0 0 5 12c0 .37.03.73.09 1.09l-2.02 1.57 2 3.46 2.43-.98c.58.48 1.21.84 1.88 1.09l.31 2.6h4l.31-2.6c.67-.25 1.3-.61 1.88-1.09l2.43.98 2-3.46-2.02-1.57c.06-.36.09-.72.09-1.09Z" stroke="currentColor" stroke-width="1.5"/></svg>
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.5"/><path d="M19 12a7 7 0 0 0-.09-1.09l2.02-1.57-2-3.46-2.43.98a7.03 7.03 0 0 0-1.88-1.09l-.31-2.6h-4l-.31-2.6c-.67.25-1.3.61-1.88 1.09l-2.43-.98-2 3.46 2.02 1.57c.06-.36.09-.72.09-1.09Z" stroke="currentColor" stroke-width="1.5"/></svg>
               </button>
             </div>
           </div>
@@ -325,7 +368,7 @@
       this._bT = setTimeout(() => this.bubble.classList.remove('show'), 1400);
     },
 
-    /* ---------- Floating points chip ---------- */
+    /* Floating points chip */
     floatPointsFromTile(tileEl, delta, color='green'){
       try{
         const scoreEl = this.scoreEl;
@@ -337,13 +380,11 @@
         const chip = document.createElement('div');
         chip.className = `ws-fxfloat ${color==='green'?'green':'yellow'}`;
         chip.textContent = (delta > 0 ? `+${delta}` : `${delta}`);
-        // start at tile center
         chip.style.left = `${tRect.left + tRect.width/2}px`;
         chip.style.top  = `${tRect.top  + tRect.height/2}px`;
         chip.style.transform = 'translate(-50%, -50%) scale(1)';
         document.body.appendChild(chip);
 
-        // kick to score center with a nice hop
         requestAnimationFrame(()=>{
           const midX = (tRect.left + sRect.left)/2;
           const midY = Math.min(tRect.top, sRect.top) - 40;
@@ -361,10 +402,8 @@
           }, 160);
         });
 
-        // clean up and pulse score + LIVE increment
         setTimeout(()=>{
           chip.remove();
-          // live add score via global handler exposed by app.js
           if (typeof window.WordscendApp_addScore === 'function') {
             window.WordscendApp_addScore(delta);
           }
@@ -425,7 +464,7 @@
         <div class="card" role="dialog" aria-label="How to play Wordscend">
           <h3>How to Play 🧩</h3>
           <p>Climb through <strong>4 levels</strong> of daily word puzzles — from 4-letter to 7-letter words. You have <strong>6 tries</strong> per level.</p>
-          <ul style="margin:6px 0 0 18px; color:var(--muted); line-height:1.5;">
+          <ul style="margin:6px 0 0 18px; color:var(--muted); line-height:1.5%;">
             <li>Type or tap to guess a word of the current length.</li>
             <li>Tiles turn <strong>green</strong> (correct spot) or <strong>yellow</strong> (in word, wrong spot).</li>
             <li>Beat a level to advance to the next length.</li>
@@ -454,12 +493,23 @@
       document.querySelector('.ws-modal')?.remove();
       const wrap = document.createElement('div');
       wrap.className = 'ws-modal';
+
       const sound = localStorage.getItem('ws_sound') !== '0';
       const colorblind = localStorage.getItem('ws_colorblind') === '1';
+      const themePref = (localStorage.getItem('ws_theme') || 'dark');
+
       wrap.innerHTML = `
         <div class="card" role="dialog" aria-label="Settings">
           <h3>Settings ⚙️</h3>
           <div class="ws-form">
+            <div class="ws-field">
+              <label for="ws-theme">Theme</label>
+              <select id="ws-theme">
+                <option value="dark"  ${themePref==='dark'?'selected':''}>Dark</option>
+                <option value="light" ${themePref==='light'?'selected':''}>Light</option>
+                <option value="auto"  ${themePref==='auto'?'selected':''}>Auto (system)</option>
+              </select>
+            </div>
             <div class="ws-field">
               <label for="ws-sound">Sound effects</label>
               <input id="ws-sound" type="checkbox" ${sound?'checked':''}/>
@@ -476,22 +526,27 @@
         </div>
       `;
       document.body.appendChild(wrap);
+
       wrap.addEventListener('click', (e)=>{
         const btn = e.target.closest('button[data-action]');
         if (!btn) { if (e.target === wrap) wrap.remove(); return; }
         const act = btn.dataset.action;
         if (act === 'save'){
+          const theme = wrap.querySelector('#ws-theme').value;
           const s = wrap.querySelector('#ws-sound').checked;
           const cb= wrap.querySelector('#ws-cb').checked;
           try {
+            Theme.setPref(theme);
+            Theme.apply(theme);
             localStorage.setItem('ws_sound', s ? '1':'0');
             localStorage.setItem('ws_colorblind', cb ? '1':'0');
           } catch {}
           btn.textContent='Saved';
-          setTimeout(()=>wrap.remove(), 400);
+          setTimeout(()=>wrap.remove(), 420);
         }
         if (act === 'close') wrap.remove();
       }, { passive:true });
+
       window.addEventListener('keydown', (e)=>{ if (e.key==='Escape'){ wrap.remove(); }}, { once:true });
     },
   };
