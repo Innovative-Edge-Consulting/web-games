@@ -1,328 +1,425 @@
-// /assets/js/app.js
-(function () {
-  /* ---------------- Utilities ---------------- */
-  function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src;
-      s.defer = true;
-      s.onload = resolve;
-      s.onerror = () => reject(new Error('Failed to load ' + src));
-      document.head.appendChild(s);
-    });
+/* ===================== THEME VARS ===================== */
+/* Default: dark (can be overridden by [data-theme] on <html>) */
+:root{
+  --brand:#497f64;
+
+  /* Dark */
+  --bg:#0d0f10;
+  --text:#ffffff;
+  --muted:#a5b3a8;
+  --border:#2a2d31;
+  --btnBg:#12161a;
+
+  --tile:#0f1214;
+  --tileFilled:#111419;
+
+  --tileSize: clamp(40px, min(9.2vw, (100vw - 64px)/7), 56px);
+
+  --correct:#2ea043; /* green */
+  --present:#e3b341; /* yellow */
+  --absent:#3a3f45;  /* gray */
+
+  --glass:#0e1115cc;
+  --card:#111419;
+  --shadow: 0 12px 32px rgba(0,0,0,.45);
+  --bubbleShadow: 0 6px 18px rgba(0,0,0,.35);
+}
+
+/* Light theme overrides */
+:root[data-theme="light"]{
+  --bg:#f6f7f9;
+  --text:#0b0d0f;
+  --muted:#5c636a;
+  --border:#d5d9df;
+  --btnBg:#ffffff;
+
+  --tile:#ffffff;
+  --tileFilled:#f0f3f6;
+
+  --absent:#cbd3dc;
+
+  --glass:#ffffffcc;
+  --card:#ffffff;
+  --shadow: 0 10px 26px rgba(0,0,0,.08);
+  --bubbleShadow: 0 8px 16px rgba(0,0,0,.10);
+}
+
+/* Optional: explicit dark attr (same as default) */
+:root[data-theme="dark"]{
+  --bg:#0d0f10;
+}
+
+/* ===================== GLOBAL ===================== */
+html,body{height:100%}
+body{
+  margin:0;
+  background:var(--bg); /* fallback if Webflow doesn't override */
+  color:var(--text);
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+}
+
+/* ✅ App-controlled page backdrop: sits above Webflow page bg, below the app */
+.ws-page-bg{
+  position:fixed;
+  inset:0;
+  background:var(--bg);
+  pointer-events:none;
+  z-index:0; /* app UI uses higher z-index */
+}
+
+/* ===================== TOP BAR ===================== */
+.ws-topbar{
+  position:sticky;
+  top:0;
+  z-index:40;
+  width:100%;
+  background:var(--glass);
+  backdrop-filter: blur(6px);
+  border-bottom:1px solid var(--border);
+}
+.ws-topbar-inner{
+  max-width:920px;
+  margin:0 auto;
+  padding:10px 16px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.ws-brand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font:800 18px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  letter-spacing:.3px;
+}
+.ws-brand .dot{ width:10px; height:10px; border-radius:50%; background:var(--brand); display:inline-block }
+
+.ws-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+/* Icon button hit-area + centering */
+.icon-btn{
+  display:grid; place-items:center;
+  width:38px; height:38px;
+  padding:4px;
+  box-sizing:border-box;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:var(--btnBg);
+  cursor:pointer;
+}
+
+/* Ensure the svg never gets cropped */
+.icon-btn svg{
+  width:20px;
+  height:20px;
+  stroke:currentColor;
+  color:var(--text);
+  overflow:visible;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+/* ===================== HUD ===================== */
+#game{
+  position:relative;   /* keep above the backdrop */
+  z-index:1;
+  width:100%;
+  max-width:720px;
+  margin:24px auto 48px;
+  padding:0 16px 48px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:16px;
+}
+
+.ws-hud{
+  width:100%;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  max-width:560px;
+}
+.ws-hud .ws-tag{
+  font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  padding:8px 10px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--card);
+  color:var(--text);
+}
+.ws-hud-right{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
+/* Score pulse when chips land */
+@keyframes ws-pulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
+.ws-tag.pulse { animation: ws-pulse 260ms ease; }
+
+/* ===================== STAGE ===================== */
+.ws-stage{
+  width:100%;
+  max-width:560px;
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:12px;
+}
+
+/* ===================== GRID ===================== */
+.ws-grid{
+  display:grid;
+  gap:8px;
+  justify-items:center;
+}
+.ws-row{
+  display:grid;
+  gap:8px;
+}
+.ws-tile{
+  width:var(--tileSize);
+  height:var(--tileSize);
+  border:1px solid var(--border);
+  border-radius:8px;
+  display:grid;
+  place-items:center;
+  font-weight:700;
+  text-transform:uppercase;
+  background:var(--tile);
+  color:var(--text);
+  user-select:none;
+  transition:transform .06s ease, background .15s ease, border-color .15s ease;
+  transform-style:preserve-3d;
+}
+.ws-tile.active{ outline:2px solid var(--brand); outline-offset:-2px; }
+.ws-tile.filled{ background:var(--tileFilled); border-color:#3a3f45; }
+:root[data-theme="light"] .ws-tile.filled{ border-color:var(--border); }
+.ws-row.ws-locked .ws-tile{ opacity:.9; }
+
+/* Submitted colors */
+.ws-tile.state-correct{ background:var(--correct); border-color:var(--correct); color:#000; }
+.ws-tile.state-present{ background:var(--present); border-color:var(--present); color:#000; }
+/* Thin black border for absent tiles */
+.ws-tile.state-absent{  background:var(--absent);  border-color:#000; color:var(--text); }
+
+/* Flip animation */
+@keyframes ws-flip-1 {
+  0%   { transform: rotateX(0); }
+  49%  { transform: rotateX(90deg); }
+  51%  { transform: rotateX(90deg); }
+  100% { transform: rotateX(0); }
+}
+.ws-tile.flip { animation: ws-flip-1 420ms ease var(--flip-delay, 0ms) both; }
+
+/* Shake for errors */
+@keyframes ws-shake{
+  0%,100%{transform:translateX(0)}
+  25%{transform:translateX(-4px)}
+  75%{transform:translateX(4px)}
+}
+.ws-row.shake .ws-tile{ animation:ws-shake 120ms linear 0s 2; }
+
+/* ===================== KEYBOARD ===================== */
+.ws-kb{
+  margin-top:8px;
+  display:grid;
+  gap:8px;
+  width:100%;
+  padding: 0 12px;
+  -webkit-tap-highlight-color: transparent;
+
+  /* Center keyboard and align to stage width */
+  max-width:560px;
+  margin-left:auto;
+  margin-right:auto;
+}
+.ws-kb-row{
+  display:grid;
+  grid-auto-flow:column;
+  justify-content:center;
+  gap:6px;
+}
+.ws-kb-key{
+  font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  padding:12px 10px;
+  min-width:34px;
+  border-radius:8px;
+  border:1px solid var(--border);
+  background:var(--btnBg);
+  color:var(--text);
+  cursor:pointer;
+  user-select:none;
+  touch-action:manipulation;
+}
+.ws-kb-key:active{ transform:translateY(1px) }
+.ws-kb-enter{ padding:12px 14px }
+.ws-kb-back{  padding:12px 14px }
+
+/* Keyboard color states */
+.ws-kb-key.k-correct{ background:var(--correct); border-color:var(--correct); color:#000; }
+.ws-kb-key.k-present{ background:var(--present); border-color:var(--present); color:#000; }
+/* Thin black border for incorrect keys */
+.ws-kb-key.k-absent{  background:var(--absent);  border-color:#000;  color:var(--text); }
+
+/* ===================== BUBBLE ===================== */
+.ws-bubble{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%, -50%);
+  background:var(--brand);
+  color:#fff;
+  border:1px solid var(--brand);
+  border-radius:12px;
+  padding:10px 16px;
+  font:700 14px/1.3 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  box-shadow:0 6px 20px rgba(0,0,0,.35);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .2s ease, transform .2s ease;
+  white-space:nowrap;
+  z-index:5;
+}
+.ws-bubble.show{
+  opacity:1;
+  transform:translate(-50%, -50%) scale(1.05);
+}
+
+/* ===================== MODALS / CARDS ===================== */
+.ws-modal,
+.ws-endcard{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.6);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:50;
+}
+:root[data-theme="light"] .ws-modal,
+:root[data-theme="light"] .ws-endcard{
+  background:rgba(8,10,12,.35);
+}
+.ws-modal .card,
+.ws-endcard .card{
+  width:min(92vw, 560px);
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:20px;
+  box-shadow:var(--shadow);
+}
+.ws-modal h3,
+.ws-endcard h3{
+  margin:0 0 10px 0;
+  font:700 20px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+}
+.ws-modal p, .ws-modal li,
+.ws-endcard p{ margin:6px 0; color:var(--muted) }
+.ws-modal .row,
+.ws-endcard .row{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap }
+.ws-btn{
+  border:1px solid var(--border);
+  background:var(--btnBg);
+  color:var(--text);
+  border-radius:10px;
+  padding:10px 12px;
+  font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  cursor:pointer;
+}
+.ws-btn.primary{ background:var(--brand); color:#fff; border-color:var(--brand) }
+
+/* Mini example tiles inside rules */
+.ws-mini-row{ display:grid; grid-auto-flow:column; gap:6px; margin-top:8px; }
+.ws-mini-tile{
+  width:28px; height:28px; border-radius:6px; display:grid; place-items:center;
+  font:700 12px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; text-transform:uppercase;
+  border:1px solid #0000;
+}
+.ws-mini-tile.correct{ background:var(--correct); color:#000; }
+.ws-mini-tile.present{ background:var(--present); color:#000; }
+.ws-mini-tile.absent{  background:var(--absent);  color:var(--text); }
+
+/* Settings form */
+.ws-form{ display:grid; gap:10px; }
+.ws-field{
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--tile);
+  border:1px solid var(--border);
+  padding:10px; border-radius:10px;
+}
+.ws-field label{ font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
+.ws-field input[type="checkbox"]{ width:18px; height:18px; }
+.ws-field select{
+  font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  color:var(--text); background:var(--btnBg);
+  border:1px solid var(--border); border-radius:8px; padding:8px 10px;
+}
+
+/* Floating points chip */
+.ws-fxfloat{
+  position:fixed;
+  z-index:60;
+  pointer-events:none;
+  font:800 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  padding:6px 8px;
+  border-radius:999px;
+  background:var(--card);
+  border:1px solid var(--border);
+  color:var(--text);
+  box-shadow:0 8px 20px rgba(0,0,0,.45);
+  transition: transform 420ms cubic-bezier(.22,.82,.25,1), opacity 420ms ease, left 420ms ease, top 420ms ease;
+  opacity:.98;
+}
+:root[data-theme="light"] .ws-fxfloat{ box-shadow:0 8px 16px rgba(0,0,0,.12); }
+.ws-fxfloat.green{ background:var(--correct); color:#000; border-color:var(--correct); }
+.ws-fxfloat.yellow{ background:var(--present); color:#000; border-color:var(--present); }
+
+/* ===================== MOBILE ===================== */
+@media (max-width: 430px){
+  :root{ --tileSize: clamp(36px, 10.5vw, 48px); }
+
+  /* Keep keyboard centered and within stage width */
+  .ws-kb{ padding: 0 8px; gap: 8px; max-width:560px; margin-left:auto; margin-right:auto; }
+
+  .ws-kb-row{
+    gap: 6px;
+    width:100%;
+    grid-auto-flow: row;
+    justify-content: center;
+    justify-items: stretch;
+  }
+  .ws-kb-row:nth-child(1){ grid-template-columns: repeat(10, 1fr); }
+  .ws-kb-row:nth-child(2){ grid-template-columns: repeat(9,  1fr); }
+  .ws-kb-row:nth-child(3){ grid-template-columns: repeat(11, 1fr); } /* fits Enter/Back spans */
+
+  .ws-kb-key{
+    justify-self:stretch;
+    min-width: auto;
+    min-height: clamp(40px, 9.8vw, 50px);
+    padding: clamp(10px, 2.4vw, 14px) clamp(8px, 2.6vw, 12px);
+    font-size: clamp(13px, 3.6vw, 16px);
+    border-radius: 10px;
   }
 
-  function getParams() {
-    const p = new URLSearchParams(location.search);
-    return {
-      level: p.get('level'),
-      endcard: p.get('endcard'),
-      score: p.get('score'),
-      reset: p.get('reset'),
-      intro: p.get('intro'),
-      settings: p.get('settings')
-    };
+  .ws-kb-enter, .ws-kb-back{
+    grid-column: span 2;
+    padding: clamp(10px, 2.4vw, 14px) clamp(10px, 3.2vw, 16px);
   }
 
-  function todayKey() {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const da = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${da}`;
-  }
-  function dateMinus(ymd, n){
-    const [y,m,d] = ymd.split('-').map(Number);
-    const dt = new Date(y, m-1, d);
-    dt.setDate(dt.getDate() - n);
-    const yy = dt.getFullYear();
-    const mm = String(dt.getMonth()+1).padStart(2, '0');
-    const dd = String(dt.getDate()).padStart(2, '0');
-    return `${yy}-${mm}-${dd}`;
-  }
+  .ws-modal .card, .ws-endcard .card { padding:16px; }
+}
 
-  /* ---------------- Config ---------------- */
-  const BASE = 'https://innovative-edge-consulting.github.io/web-games';
-  const ALLOWED_URL = 'https://raw.githubusercontent.com/dwyl/english-words/master/words.txt';
-  const SCORE_TABLE = [100, 70, 50, 35, 25, 18]; // per-level bonus
-  const LEVEL_LENGTHS = [4, 5, 6, 7];
-  const STORE_KEY = 'wordscend_v3';
-
-  function defaultStore() {
-    return {
-      day: todayKey(),
-      score: 0,
-      levelIndex: 0,
-      streak: { current: 0, best: 0, lastPlayDay: null, markedToday: false },
-      progress: {} // per-level snapshots (by numeric index)
-    };
-  }
-
-  function loadStore() {
-    try {
-      const raw = localStorage.getItem(STORE_KEY);
-      if (!raw) return defaultStore();
-      const parsed = JSON.parse(raw);
-
-      if (!parsed.streak) parsed.streak = {};
-      parsed.streak.current = Number(parsed.streak.current || 0);
-      parsed.streak.best    = Number(parsed.streak.best || 0);
-      parsed.streak.lastPlayDay = parsed.streak.lastPlayDay || null;
-      parsed.streak.markedToday = !!parsed.streak.markedToday;
-
-      if (!parsed.progress || typeof parsed.progress !== 'object') {
-        parsed.progress = {};
-      }
-
-      const today = todayKey();
-      if (parsed.day !== today) {
-        // New day: reset session state and clear progress
-        parsed.day = today;
-        parsed.score = 0;
-        parsed.levelIndex = 0;
-        parsed.streak.markedToday = false;
-        parsed.progress = {};
-      }
-
-      if (parsed.levelLen && parsed.levelIndex == null) {
-        const idx = Math.max(0, LEVEL_LENGTHS.indexOf(parsed.levelLen));
-        parsed.levelIndex = (idx === -1) ? 0 : idx;
-        delete parsed.levelLen;
-      }
-      parsed.levelIndex = Number.isInteger(parsed.levelIndex) ? parsed.levelIndex : 0;
-      parsed.score = typeof parsed.score === 'number' ? parsed.score : 0;
-
-      return parsed;
-    } catch {
-      return defaultStore();
-    }
-  }
-
-  function saveStore(s){ localStorage.setItem(STORE_KEY, JSON.stringify(s)); }
-
-  // Mark "played today" on first valid guess processed
-  function markPlayedToday(store) {
-    const today = todayKey();
-    const st = store.streak;
-    if (st.markedToday) return false;
-    if (st.lastPlayDay === today) { st.markedToday = true; saveStore(store); return true; }
-    if (st.lastPlayDay === dateMinus(today, 1)) st.current = (st.current || 0) + 1;
-    else st.current = 1;
-    if ((st.current || 0) > (st.best || 0)) st.best = st.current;
-    st.lastPlayDay = today;
-    st.markedToday = true;
-    saveStore(store);
-    return true;
-  }
-
-  function applyUrlOverrides(store) {
-    const q = getParams();
-    if (q.reset === '1') {
-      const fresh = defaultStore();
-      saveStore(fresh);
-      return fresh;
-    }
-    const lvl = q.level ? parseInt(q.level, 10) : NaN;
-    if (!isNaN(lvl) && lvl >= 1 && lvl <= 4) {
-      store.levelIndex = lvl - 1;
-      saveStore(store);
-    }
-    return store;
-  }
-
-  /* ---------- Progress persistence helpers ---------- */
-  function clearProgress(levelIdx) {
-    try {
-      if (store.progress && store.progress[levelIdx] != null) {
-        delete store.progress[levelIdx];
-        saveStore(store);
-      }
-    } catch {}
-  }
-
-  function saveProgress(levelIdx, answer) {
-    try {
-      if (!window.WordscendEngine?.snapshot) return;
-      const snap = window.WordscendEngine.snapshot();
-      // attach answer (for validation) + a very small schema flag
-      const payload = { ...snap, answer, v: 1 };
-      store.progress[levelIdx] = payload;
-      saveStore(store);
-    } catch {}
-  }
-
-  function tryRestoreProgress(levelIdx, expectedAnswer, expectedCols) {
-    try {
-      const payload = store.progress?.[levelIdx];
-      if (!payload || !window.WordscendEngine?.hydrate) return false;
-      if (payload.v !== 1) return false; // version mismatch guard
-      if (payload.answer !== expectedAnswer) return false;
-      if (payload.cols !== expectedCols) return false;
-      // hydrate the engine state
-      return window.WordscendEngine.hydrate(payload) === true;
-    } catch {
-      return false;
-    }
-  }
-
-  /* ---------------- Bootstrap ---------------- */
-  const root = document.getElementById('game') || document.body;
-  root.innerHTML = '<div style="margin:24px 0;font:600 14px system-ui;color:#fff;opacity:.8;">Loading word list…</div>';
-
-  const store0 = loadStore();
-  const store = applyUrlOverrides(store0);
-
-  // Global live-score hook used by UI chips
-  window.WordscendApp_addScore = function(delta){
-    try {
-      const d = Number(delta || 0);
-      if (!isFinite(d) || d === 0) return;
-      store.score = Math.max(0, (store.score || 0) + d);
-      saveStore(store);
-      // Refresh HUD immediately
-      if (window.WordscendUI) {
-        window.WordscendUI.setHUD(`Level ${store.levelIndex+1}/4`, store.score, store.streak.current);
-      }
-    } catch {}
-  };
-
-  // Save progress after every user interaction the UI notifies about
-  window.WordscendApp_onStateChange = function(){
-    try {
-      // We’ll re-save with the most recent answer cached in closure
-      if (currentAnswer != null) saveProgress(store.levelIndex, currentAnswer);
-    } catch {}
-  };
-
-  let currentAnswer = null; // cache the active answer for save hooks
-
-  Promise.all([
-    loadScript(`${BASE}/core/engine.js?v=header-1`),
-    loadScript(`${BASE}/ui/dom-view.js?v=header-1`),
-    loadScript(`${BASE}/core/dictionary.js?v=header-1`)
-  ])
-  .then(async () => {
-    const { allowedSet } = await window.WordscendDictionary.loadDWYL(ALLOWED_URL, {
-      minLen: 4, maxLen: 7
-    });
-
-    const qp = getParams();
-
-    // QA: end card preview
-    if (qp.endcard === '1') {
-      const fakeScore = qp.score ? Math.max(0, parseInt(qp.score, 10) || 0) : store.score;
-      mountBlankStage();
-      window.WordscendUI.showEndCard(fakeScore, store.streak.current, store.streak.best);
-      return;
-    }
-
-    // Start the requested/current level
-    await startLevel(store.levelIndex);
-
-    // On-demand modals for QA:
-    if (qp.intro === '1') window.WordscendUI.showRulesModal();
-    if (qp.settings === '1') window.WordscendUI.showSettingsModal();
-
-    /* ------------ functions ------------ */
-    async function startLevel(idx){
-      const levelLens = [4,5,6,7];
-      const levelLen = levelLens[idx];
-
-      const curated = window.WordscendDictionary.answersOfLength(levelLen);
-      const list = curated && curated.length
-        ? curated
-        : Array.from(allowedSet).filter(w => w.length === levelLen);
-
-      const answer = window.WordscendDictionary.pickToday(list);
-      currentAnswer = answer;
-
-      window.WordscendEngine.setAllowed(allowedSet);
-
-      // init blank state (will be immediately hydrated if progress exists)
-      const cfg = window.WordscendEngine.init({ rows:6, cols: levelLen });
-      window.WordscendEngine.setAnswer(answer);
-
-      // Try to restore saved progress (must match answer and size)
-      const restored = tryRestoreProgress(idx, answer, levelLen);
-
-      // Mount UI after engine is in the desired state
-      window.WordscendUI.mount(root, cfg);
-      window.WordscendUI.setHUD(`Level ${idx+1}/4`, store.score, store.streak.current);
-
-      // If we restored, make sure the visual grid & keyboard reflect it
-      if (restored) {
-        // A render was already performed during mount; ask UI to re-render by sending a no-op change
-        window.WordscendApp_onStateChange?.();
-      }
-
-      // Wrap submitRow to add scoring + flow and manage persistence lifecycle
-      const origSubmit = window.WordscendEngine.submitRow.bind(window.WordscendEngine);
-      window.WordscendEngine.submitRow = function(){
-        const res = origSubmit();
-
-        // Count "played" on any valid processed row
-        if (res && res.ok) {
-          if (markPlayedToday(store)) {
-            window.WordscendUI.setHUD(`Level ${idx+1}/4`, store.score, store.streak.current);
-          }
-          // Save progress after each valid submit
-          saveProgress(idx, answer);
-        }
-
-        if (res && res.ok && res.done) {
-          if (res.win) {
-            const attempt = res.attempt ?? 6;
-            const gained = SCORE_TABLE[Math.min(Math.max(attempt,1),6) - 1] || 0;
-
-            // Add per-level bonus on top of live chip points
-            store.score += gained;
-            saveStore(store);
-
-            window.WordscendUI.setHUD(`Level ${idx+1}/4`, store.score, store.streak.current);
-            window.WordscendUI.showBubble(`+${gained} pts`);
-
-            // Completed level: clear persisted progress for this level
-            clearProgress(idx);
-
-            const isLast = (idx === LEVEL_LENGTHS.length - 1);
-            setTimeout(() => {
-              if (isLast) {
-                window.WordscendUI.showEndCard(store.score, store.streak.current, store.streak.best);
-                // Reset score/level for next day’s run (streak persists)
-                store.day = todayKey();
-                store.score = 0;
-                store.levelIndex = 0;
-                store.progress = {}; // clear all progress for fresh run
-                saveStore(store);
-              } else {
-                store.levelIndex = idx + 1;
-                saveStore(store);
-                startLevel(store.levelIndex);
-              }
-            }, 1200);
-
-          } else {
-            // Fail: retry same level fresh — clear progress snapshot
-            clearProgress(idx);
-            window.WordscendUI.showBubble('Out of tries. Try again');
-            saveStore(store);
-            setTimeout(() => startLevel(idx), 1200);
-          }
-        } else {
-          // Not done yet — save intermediate progress as well
-          if (res && res.ok) saveProgress(idx, answer);
-        }
-        return res;
-      };
-    }
-
-    function mountBlankStage(){
-      window.WordscendUI.mount(root, { rows:6, cols:5 });
-      window.WordscendUI.setHUD(`Level 4/4`, store.score, store.streak.current);
-    }
-  })
-  .catch(err => {
-    console.error('[Wordscend] Bootstrap failed:', err);
-    root.innerHTML = '<div style="margin:24px 0;font:600 14px system-ui;color:#fff;">Failed to load. Please refresh.</div>';
-  });
-})();
+/* HUD spacing tweak */
+.ws-hud-right { gap:8px; }
+@media (max-width:430px){
+  .ws-hud-right { gap:6px; }
+}
