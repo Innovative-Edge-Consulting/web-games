@@ -97,14 +97,17 @@
       this.root = rootEl;
       this.config = config;
 
-      // Ensure theme is applied on mount too (app.js also pre-applies to avoid flash)
+      // Ensure theme is applied on mount (prevents flash)
       Theme.apply(Theme.getPref());
 
-      // Apply colorblind attribute from saved pref
-      const cbInit = (localStorage.getItem('ws_colorblind') === '1');
-      document.documentElement.setAttribute('data-cb', cbInit ? '1' : '0');
+      // ✅ Create/ensure app-controlled backdrop (overrides Webflow bg)
+      if (!document.querySelector('.ws-page-bg')) {
+        const bg = document.createElement('div');
+        bg.className = 'ws-page-bg';
+        document.body.appendChild(bg);
+      }
 
-      // Topbar (brand + actions) + HUD + Stage + Keyboard
+      // Topbar + HUD + Stage + Grid + Keyboard
       this.root.innerHTML = `
         <div class="ws-topbar">
           <div class="ws-topbar-inner">
@@ -225,7 +228,7 @@
 
       const isMobile = window.matchMedia && window.matchMedia('(max-width: 430px)').matches;
 
-      KB_ROWS.forEach((row, ri) => {
+      KB_ROWS.forEach((row) => {
         const rowEl = document.createElement('div');
         rowEl.className = 'ws-kb-row';
 
@@ -238,7 +241,6 @@
           if (key === 'Enter') {
             btn.classList.add('ws-kb-enter');
             btn.dataset.key = 'Enter';
-            // Compact label for mobile to avoid overflow
             if (isMobile) {
               btn.textContent = '⏎';
               btn.setAttribute('aria-label','Enter');
@@ -355,32 +357,6 @@
       const rowEl = rows[rowIndex];
       if (!rowEl) return;
 
-      const board = global.WordscendEngine.getBoard();
-      const rowLetters = (board[rowIndex] || []).map(ch => (ch || '').toUpperCase());
-
-      // Build answer frequency map and already-awarded counts from previous rows
-      const answer = (global.WordscendEngine.getAnswer?.() || '').toUpperCase();
-      const ansFreq = {};
-      for (let i = 0; i < answer.length; i++) {
-        const ch = answer[i];
-        ansFreq[ch] = (ansFreq[ch] || 0) + 1;
-      }
-
-      const prevMarks = global.WordscendEngine.getRowMarks();
-      const awarded = {}; // letter -> how many times we've already given points across prior rows
-      const countIfScored = (m) => (m === 'correct' || m === 'present');
-
-      for (let r = 0; r < rowIndex; r++) {
-        const mks = prevMarks[r] || [];
-        const row = board[r] || [];
-        for (let c = 0; c < mks.length; c++) {
-          if (countIfScored(mks[c])) {
-            const ch = (row[c] || '').toUpperCase();
-            awarded[ch] = (awarded[ch] || 0) + 1;
-          }
-        }
-      }
-
       const tiles = Array.from(rowEl.querySelectorAll('.ws-tile'));
       tiles.forEach((tile, i) => {
         const delay = i * 80; // stagger
@@ -393,21 +369,11 @@
             tile.classList.remove('state-correct','state-present','state-absent');
             tile.classList.add('state-' + mark);
 
-            // Points awarding with per-letter-per-occurrence cap:
-            if (mark === 'correct' || mark === 'present') {
-              const letter = rowLetters[i];
-              const maxForLetter = ansFreq[letter] || 0;
-              const already = awarded[letter] || 0;
-
-              if (already < maxForLetter) {
-                if (mark === 'correct') {
-                  this.floatPointsFromTile(tile, +2, 'green');
-                  AudioFX.ding();
-                } else {
-                  this.floatPointsFromTile(tile, +1, 'yellow');
-                }
-                awarded[letter] = already + 1;
-              }
+            if (mark === 'correct') {
+              this.floatPointsFromTile(tile, +2, 'green');
+              AudioFX.ding();
+            } else if (mark === 'present') {
+              this.floatPointsFromTile(tile, +1, 'yellow');
             }
           }
         }, delay + 210);
