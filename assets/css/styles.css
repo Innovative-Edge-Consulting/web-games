@@ -53,18 +53,18 @@
 html,body{height:100%}
 body{
   margin:0;
-  background:var(--bg); /* fallback if Webflow doesn't override */
+  background:var(--bg);
   color:var(--text);
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
 }
 
-/* ✅ App-controlled page backdrop: sits above Webflow page bg, below the app */
+/* App-controlled backdrop */
 .ws-page-bg{
   position:fixed;
   inset:0;
   background:var(--bg);
   pointer-events:none;
-  z-index:0; /* app UI uses higher z-index */
+  z-index:0;
 }
 
 /* ===================== TOP BAR ===================== */
@@ -110,9 +110,10 @@ body{
   border:1px solid var(--border);
   background:var(--btnBg);
   cursor:pointer;
+  line-height:0; /* prevent cropping from text metrics */
 }
 
-/* Ensure the svg never gets cropped */
+/* Ensure the svg never gets cropped by the element box */
 .icon-btn svg{
   width:20px;
   height:20px;
@@ -125,7 +126,7 @@ body{
 
 /* ===================== HUD ===================== */
 #game{
-  position:relative;   /* keep above the backdrop */
+  position:relative;
   z-index:1;
   width:100%;
   max-width:720px;
@@ -155,7 +156,7 @@ body{
 }
 .ws-hud-right{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 
-/* Score pulse when chips land */
+/* Score pulse */
 @keyframes ws-pulse {
   0% { transform: scale(1); }
   40% { transform: scale(1.07); }
@@ -207,7 +208,6 @@ body{
 /* Submitted colors */
 .ws-tile.state-correct{ background:var(--correct); border-color:var(--correct); color:#000; }
 .ws-tile.state-present{ background:var(--present); border-color:var(--present); color:#000; }
-/* Thin black border for absent tiles */
 .ws-tile.state-absent{  background:var(--absent);  border-color:#000; color:var(--text); }
 
 /* Flip animation */
@@ -236,7 +236,6 @@ body{
   padding: 0 12px;
   -webkit-tap-highlight-color: transparent;
 
-  /* Center keyboard and align to stage width */
   max-width:560px;
   margin-left:auto;
   margin-right:auto;
@@ -266,7 +265,6 @@ body{
 /* Keyboard color states */
 .ws-kb-key.k-correct{ background:var(--correct); border-color:var(--correct); color:#000; }
 .ws-kb-key.k-present{ background:var(--present); border-color:var(--present); color:#000; }
-/* Thin black border for incorrect keys */
 .ws-kb-key.k-absent{  background:var(--absent);  border-color:#000;  color:var(--text); }
 
 /* ===================== BUBBLE ===================== */
@@ -387,7 +385,6 @@ body{
 @media (max-width: 430px){
   :root{ --tileSize: clamp(36px, 10.5vw, 48px); }
 
-  /* Keep keyboard centered and within stage width */
   .ws-kb{ padding: 0 8px; gap: 8px; max-width:560px; margin-left:auto; margin-right:auto; }
 
   .ws-kb-row{
@@ -399,7 +396,7 @@ body{
   }
   .ws-kb-row:nth-child(1){ grid-template-columns: repeat(10, 1fr); }
   .ws-kb-row:nth-child(2){ grid-template-columns: repeat(9,  1fr); }
-  .ws-kb-row:nth-child(3){ grid-template-columns: repeat(11, 1fr); } /* fits Enter/Back spans */
+  .ws-kb-row:nth-child(3){ grid-template-columns: repeat(11, 1fr); }
 
   .ws-kb-key{
     justify-self:stretch;
