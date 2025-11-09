@@ -109,7 +109,11 @@
     }
 
     const guess = STATE.board[row].join('');
-    if (!STATE.allowed.has(guess)) {
+    const dict = window.WordscendDictionary;
+    const allowed = dict && typeof dict.isAllowedGuess === 'function'
+      ? dict.isAllowedGuess(guess)
+      : STATE.allowed.has(guess);
+    if (!allowed) {
       return { ok:false, reason:'invalid', attempt: row+1 };
     }
 

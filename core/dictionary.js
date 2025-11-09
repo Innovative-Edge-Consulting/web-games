@@ -1,5 +1,18 @@
 // /core/dictionary.js
 (function (global) {
+  const BAN_ABBREVS = new Set([
+    'fifa','nato','nasa','asap','diy','eta','faq','hdmi','jpeg','pdf','usb',
+    'html','css','json','kpi','roi','oauth','yaml','xml','api','ipsec','oauth'
+  ]);
+
+  function looksEnglish(word) {
+    if (typeof word !== 'string' || !word) return false;
+    const lower = word.toLowerCase();
+    if (!/^[a-z]{4,7}$/.test(lower)) return false;
+    if (BAN_ABBREVS.has(lower)) return false;
+    return true;
+  }
+
   const Dict = {
     _allowedSet: new Set(),
     _answers: {
@@ -21,10 +34,18 @@
         if (!w) continue;
         if (w.length < minLen || w.length > maxLen) continue;
         if (!/^[A-Z]+$/.test(w)) continue;
+        if (!looksEnglish(w)) continue;
         set.add(w);
       }
       this._allowedSet = set;
       return { allowedSet: this._allowedSet };
+    },
+
+    looksEnglish,
+
+    isAllowedGuess(word) {
+      if (!looksEnglish(word)) return false;
+      return this._allowedSet.has((word || '').toUpperCase());
     },
 
     answersOfLength(len) {
