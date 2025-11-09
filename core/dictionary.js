@@ -1,21 +1,57 @@
-// /core/dictionary.js — Word loader + answer picker
-(function(global){
-  async function loadDWYL(url,opts){
-    const r=await fetch(url);const t=await r.text();
-    const set=new Set();const min=opts?.minLen||4,max=opts?.maxLen||7;
-    const lines=t.split(/\r?\n/);
-    for(const w0 of lines){
-      const w=w0.trim().toUpperCase();
-      if(w.length<min||w.length>max)continue;
-      if(!/^[A-Z]+$/.test(w))continue;
-      set.add(w);
-    }
-    return{allowedSet:set};
-  }
-  function pickToday(list){
-    if(!list.length)return'WORD';
-    const d=new Date();const seed=(d.getFullYear()*10000)+(d.getMonth()+1)*100+d.getDate();
-    const idx=seed%list.length;return list[idx];
-  }
-  global.WordscendDictionary={loadDWYL,pickToday};
+// /core/dictionary.js
+(function (global) {
+  const Dict = {
+    _allowedSet: new Set(),
+    _answers: {
+      4: [], 5: [], 6: [], 7: [] // optional curated pools (empty by default)
+    },
+
+    async loadDWYL(url, opts = {}) {
+      const minLen = opts.minLen ?? 4;
+      const maxLen = opts.maxLen ?? 7;
+
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to load word list');
+      const text = await res.text();
+
+      const set = new Set();
+      const lines = text.split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        const w = (lines[i] || '').trim().toUpperCase();
+        if (!w) continue;
+        if (w.length < minLen || w.length > maxLen) continue;
+        if (!/^[A-Z]+$/.test(w)) continue;
+        set.add(w);
+      }
+      this._allowedSet = set;
+      return { allowedSet: this._allowedSet };
+    },
+
+    answersOfLength(len) {
+      const list = this._answers[len] || [];
+      return list.length ? list.slice() : null;
+    },
+
+    pickToday(list) {
+      if (!list || !list.length) return 'WORD';
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = d.getMonth() + 1;
+      const day = d.getDate();
+      const key = `${y}-${m}-${day}`;
+
+      // simple hash
+      let h = 2166136261;
+      for (let i = 0; i < key.length; i++) {
+        h ^= key.charCodeAt(i);
+        h = (h * 16777619) >>> 0;
+      }
+      const idx = h % list.length;
+      return list[idx];
+    },
+
+    get allowedSet(){ return this._allowedSet; }
+  };
+
+  global.WordscendDictionary = Dict;
 })(window);
