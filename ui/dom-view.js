@@ -12,7 +12,7 @@
     current: null,
     getPref() { return localStorage.getItem('ws_theme') || 'dark'; },
     setPref(v){ try{ localStorage.setItem('ws_theme', v); }catch{} },
-    systemIsDark(){ 
+    systemIsDark(){
       this.media = this.media || window.matchMedia('(prefers-color-scheme: dark)');
       return this.media.matches;
     },
@@ -125,7 +125,7 @@
               </button>
               <button class="icon-btn" id="ws-settings" type="button" title="Settings" aria-label="Settings">
                 <svg viewBox="-1 -1 26 26" fill="none" aria-hidden="true">
-                  <path d="M19.4 13.1a7.9 7.9 0 0 0 0-2.2l2-1.5-1.6-2.7-2.4.9a8 8 0 0 0-1.9-1.1l-.3-2.5h-3.2l-.3 2.5c-.7.2-1.3.6-1.9 1.1l-2.4-.9-1.6 2.7 2 1.5a7.9 7.9 0 0 0 0 2.2l-2 1.5 1.6 2.7 2.4-.9c.6.5 1.2.8 1.9 1.1l.3 2.5h3.2l.3-2.5c.7-.2 1.3-.6 1.9-1.1l2.4.9 1.6-2.7-2-1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                  <path d="M19.4 13.1a7.9 7.9 0 0 0 0-2.2l2-1.5-1.6-2.7-2.4.9a8 8 0 0 0-1.9-1.1l-.3-2.5h-3.2l-.3 2.5c-.7.2-1.3.6-1.9 1.1l-2.4-.9-1.6 2.7 2 1.5a7.9 7.9 0 0 0 0 2.2l-2 1.5 1.6 2.7 2.4-.9c.6.5 1.2.8 1.9 1.1l2.4.9 1.6-2.7-2-1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
                   <circle cx="12" cy="12" r="3.5" stroke="currentColor" stroke-width="1.5"></circle>
                 </svg>
               </button>
@@ -147,7 +147,7 @@
         </div>
 
         <div class="ws-kb" aria-label="On-screen keyboard"></div>
-      `;
+      `; // ✅ properly closed with a backtick
 
       // Cache refs
       this.levelEl = this.root.querySelector('#ws-level');
@@ -427,7 +427,7 @@
           setTimeout(()=>{
             chip.style.left = `${sRect.left + sRect.width/2}px`;
             chip.style.top  = `${sRect.top  + sRect.height/2}px`;
-            chip.style.transform = 'translate(-50%, -50%) scale(0.8)`;
+            chip.style.transform = 'translate(-50%, -50%) scale(0.8)';
             chip.style.opacity = '0.0';
           }, 160);
         });
@@ -496,7 +496,7 @@
         <div class="card" role="dialog" aria-label="How to play Wordscend">
           <h3>How to Play 🧩</h3>
           <p>Climb through <strong>4 levels</strong> of daily word puzzles — from 4-letter to 7-letter words. You have <strong>6 tries</strong> per level.</p>
-          <ul style="margin:6px 0 0 18px; color:var(--muted); line-height:1.5%;">
+          <ul style="margin:6px 0 0 18px; color:var(--muted); line-height:1.5;">
             <li>Type or tap to guess a word of the current length.</li>
             <li>Tiles turn <strong>green</strong> (correct spot) or <strong>yellow</strong> (in word, wrong spot).</li>
             <li>Beat a level to advance to the next length.</li>
