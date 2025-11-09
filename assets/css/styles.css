@@ -58,14 +58,6 @@ body{
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
 }
 
-/* Respect reduced motion */
-@media (prefers-reduced-motion: reduce){
-  .ws-tile{ transition:none !important }
-  .ws-tile.flip{ animation:none !important }
-  .ws-row.shake .ws-tile{ animation:none !important }
-  .ws-fxfloat{ transition:none !important }
-}
-
 /* ===================== TOP BAR ===================== */
 .ws-topbar{
   position:sticky;
@@ -102,9 +94,9 @@ body{
 /* Icon button hit-area + centering */
 .icon-btn{
   display:grid; place-items:center;
-  width:38px; height:38px;
-  padding:4px;
-  box-sizing:border-box;
+  width:38px; height:38px;           /* was 36x36 */
+  padding:4px;                       /* adds inner breathing room */
+  box-sizing:border-box;             /* ensures padding doesn't shrink the icon */
   border-radius:10px;
   border:1px solid var(--border);
   background:var(--btnBg);
@@ -113,12 +105,12 @@ body{
 
 /* Ensure the svg never gets cropped */
 .icon-btn svg{
-  width:20px;
-  height:20px;
+  width:20px;                        /* was 18 */
+  height:20px;                       /* was 18 */
   stroke:currentColor;
   color:var(--text);
-  overflow:visible;
-  stroke-linecap:round;
+  overflow:visible;                  /* avoids edge clipping with round caps */
+  stroke-linecap:round;              /* smoother edges */
   stroke-linejoin:round;
 }
 
@@ -204,24 +196,8 @@ body{
 /* Submitted colors */
 .ws-tile.state-correct{ background:var(--correct); border-color:var(--correct); color:#000; }
 .ws-tile.state-present{ background:var(--present); border-color:var(--present); color:#000; }
-/* ✅ Restored thin black border for “absent” tiles */
+/* Thin black border for absent tiles */
 .ws-tile.state-absent{  background:var(--absent);  border-color:#000; color:var(--text); }
-
-/* Colorblind patterns when enabled */
-:root[data-cb="1"] .ws-tile.state-correct,
-:root[data-cb="1"] .ws-kb-key.k-correct{
-  background-image:
-    linear-gradient(135deg, #0000 25%, #00000022 25% 50%, #0000 50% 75%, #00000022 75%),
-    linear-gradient(0deg, var(--correct), var(--correct));
-  background-size:10px 10px, 100% 100%;
-}
-:root[data-cb="1"] .ws-tile.state-present,
-:root[data-cb="1"] .ws-kb-key.k-present{
-  background-image:
-    linear-gradient(135deg, #0000 25%, #00000022 25% 50%, #0000 50% 75%, #00000022 75%),
-    linear-gradient(0deg, var(--present), var(--present));
-  background-size:10px 10px, 100% 100%;
-}
 
 /* Flip animation */
 @keyframes ws-flip-1 {
@@ -274,7 +250,8 @@ body{
 /* Keyboard color states */
 .ws-kb-key.k-correct{ background:var(--correct); border-color:var(--correct); color:#000; }
 .ws-kb-key.k-present{ background:var(--present); border-color:var(--present); color:#000; }
-.ws-kb-key.k-absent{  background:var(--absent);  border-color:#0000;  color:var(--text); }
+/* ✅ Thin black border for incorrect keys */
+.ws-kb-key.k-absent{  background:var(--absent);  border-color:#000;  color:var(--text); }
 
 /* ===================== BUBBLE ===================== */
 .ws-bubble{
@@ -390,18 +367,22 @@ body{
 /* ===================== MOBILE ===================== */
 @media (max-width: 430px){
   :root{ --tileSize: clamp(36px, 10.5vw, 48px); }
-  .ws-kb{ padding: 0 10px; gap: 6px; }
-  .ws-kb-row{ gap: 5px; }
-  .ws-kb-key{ padding: 10px 8px; min-width: 30px; font-weight: 700; }
-  .ws-modal .card, .ws-endcard .card { padding:16px; }
-}
 
-/* Extra-tight layout for very small screens and 7 letters */
-@media (max-width: 380px){
-  .ws-grid, .ws-row{ gap:6px }
-  :root{ --tileSize: clamp(34px, 10.5vw, 46px); }
-  .ws-bubble{ transform:translate(-50%, -8px) }
-  .ws-bubble.show{ transform:translate(-50%, -18px) }
+  /* More padding & spacing for easier tapping */
+  .ws-kb{ padding: 0 8px; gap: 8px; }
+  .ws-kb-row{ gap: 7px; }
+
+  /* ✅ Bigger keys for mobile ergonomics (min 44px tap target) */
+  .ws-kb-key{
+    padding: 14px 12px;
+    min-width: 36px;
+    min-height: 46px;     /* ensures ~44+ logical px tap target */
+    font-size: 16px;      /* a bit larger for readability */
+    border-radius: 10px;
+  }
+  .ws-kb-enter, .ws-kb-back{ padding: 14px 16px; }
+
+  .ws-modal .card, .ws-endcard .card { padding:16px; }
 }
 
 /* HUD spacing tweak */
