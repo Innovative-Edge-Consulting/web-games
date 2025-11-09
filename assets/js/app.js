@@ -1,5 +1,9 @@
 // /assets/js/app.js
 (function () {
+  // Prevent accidental double-boot if included twice
+  if (window.__wordscendBooted) { console.warn('[Wordscend] already booted'); return; }
+  window.__wordscendBooted = true;
+
   /* ---------------- Utilities ---------------- */
   function loadScript(src) {
     return new Promise((resolve, reject) => {
@@ -24,12 +28,23 @@
     };
   }
 
-  function todayKey() {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const da = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${da}`;
+  // Toronto-anchored date key so the daily stays consistent
+  function todayKey(){
+    try{
+      const d = new Date();
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone:'America/Toronto',
+        year:'numeric', month:'2-digit', day:'2-digit'
+      }).formatToParts(d);
+      const y = parts.find(p=>p.type==='year').value;
+      const m = parts.find(p=>p.type==='month').value;
+      const da= parts.find(p=>p.type==='day').value;
+      return `${y}-${m}-${da}`;
+    }catch{
+      const d = new Date();
+      const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const da=String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${da}`;
+    }
   }
   function dateMinus(ymd, n){
     const [y,m,d] = ymd.split('-').map(Number);
@@ -45,7 +60,6 @@
   const BASE = 'https://innovative-edge-consulting.github.io/web-games';
   const ALLOWED_URL = 'https://raw.githubusercontent.com/dwyl/english-words/master/words.txt';
   const SCORE_TABLE = [100, 70, 50, 35, 25, 18]; // per-level bonus
-  const LEVEL_LENGTHS = [4, 5, 6, 7];
   const STORE_KEY = 'wordscend_v3';
 
   function defaultStore() {
@@ -76,9 +90,11 @@
         parsed.levelIndex = 0;
         parsed.streak.markedToday = false;
       }
-      if (parsed.levelLen && parsed.levelIndex == null) {
-        const idx = Math.max(0, LEVEL_LENGTHS.indexOf(parsed.levelLen));
-        parsed.levelIndex = (idx === -1) ? 0 : idx;
+      // Legacy migration: convert levelLen to levelIndex (if present)
+      if (parsed.levelLen != null && parsed.levelIndex == null) {
+        const lengths = [4,5,6,7];
+        const i2 = lengths.indexOf(parsed.levelLen);
+        parsed.levelIndex = (i2 === -1 ? 0 : i2);
         delete parsed.levelLen;
       }
       parsed.levelIndex = Number.isInteger(parsed.levelIndex) ? parsed.levelIndex : 0;
@@ -149,6 +165,9 @@
     loadScript(`${BASE}/core/dictionary.js?v=header-1`)
   ])
   .then(async () => {
+    // One source of truth for level lengths (from engine)
+    const LEVEL_LENGTHS = (window.WordscendEngine.getLevelLengths && window.WordscendEngine.getLevelLengths()) || [4,5,6,7];
+
     const { allowedSet } = await window.WordscendDictionary.loadDWYL(ALLOWED_URL, {
       minLen: 4, maxLen: 7
     });
@@ -172,7 +191,6 @@
 
     /* ------------ functions ------------ */
     async function startLevel(idx){
-      const LEVEL_LENGTHS = [4,5,6,7];
       const levelLen = LEVEL_LENGTHS[idx];
 
       const curated = window.WordscendDictionary.answersOfLength(levelLen);
@@ -187,7 +205,7 @@
       const cfg = window.WordscendEngine.init({ rows:6, cols: levelLen });
 
       window.WordscendUI.mount(root, cfg);
-      window.WordscendUI.setHUD(`Level ${idx+1}/4`, store.score, store.streak.current);
+      window.WordscendUI.setHUD(`Level ${idx+1}/4 — ${levelLen}-letter`, store.score, store.streak.current);
 
       const origSubmit = window.WordscendEngine.submitRow.bind(window.WordscendEngine);
       window.WordscendEngine.submitRow = function(){
@@ -196,7 +214,7 @@
         // Count "played" on any valid processed row
         if (res && res.ok) {
           if (markPlayedToday(store)) {
-            window.WordscendUI.setHUD(`Level ${idx+1}/4`, store.score, store.streak.current);
+            window.WordscendUI.setHUD(`Level ${idx+1}/4 — ${levelLen}-letter`, store.score, store.streak.current);
           }
         }
 
@@ -209,7 +227,7 @@
             store.score += gained;
             saveStore(store);
 
-            window.WordscendUI.setHUD(`Level ${idx+1}/4`, store.score, store.streak.current);
+            window.WordscendUI.setHUD(`Level ${idx+1}/4 — ${levelLen}-letter`, store.score, store.streak.current);
             window.WordscendUI.showBubble(`+${gained} pts`);
 
             const isLast = (idx === LEVEL_LENGTHS.length - 1);
@@ -241,7 +259,7 @@
 
     function mountBlankStage(){
       window.WordscendUI.mount(root, { rows:6, cols:5 });
-      window.WordscendUI.setHUD(`Level 4/4`, store.score, store.streak.current);
+      window.WordscendUI.setHUD(`Level 4/4 — 7-letter`, store.score, store.streak.current);
     }
   })
   .catch(err => {
