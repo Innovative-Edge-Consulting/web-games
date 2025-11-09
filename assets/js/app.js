@@ -12,6 +12,15 @@
     });
   }
 
+  async function loadAny(urls){
+    let lastErr;
+    for (const u of urls){
+      try { await loadScript(u); return u; }
+      catch(e){ lastErr = e; }
+    }
+    throw lastErr || new Error('All script candidates failed');
+  }
+
   function getParams() {
     const p = new URLSearchParams(location.search);
     return {
@@ -208,6 +217,10 @@
   const store0 = loadStore();
   const store = applyUrlOverrides(store0);
 
+  // Optional: if some theme/page is still adding AdSense, this stops errors touching our code.
+  if (!window.adsbygoogle) { window.adsbygoogle = []; }
+  // (If you still see a 403 network error, it’s from the remote script tag itself, not this app.)
+
   // Global live-score hook used by UI chips
   window.WordscendApp_addScore = function(delta){
     try {
@@ -221,12 +234,15 @@
     } catch {}
   };
 
-  Promise.all([
-    loadScript(`${BASE}/core/engine.js?v=header-1`),
-    loadScript(`${BASE}/ui/dom-view.js?v=header-1`),
-    loadScript(`${BASE}/core/dictionary.js?v=header-1`)
-  ])
-  .then(async () => {
+  (async () => {
+    // Load core/ui/dict from GitHub Pages OR fallback to local paths
+    const loaded = [];
+    loaded.push(await loadAny([`${BASE}/core/engine.js?v=cb1`, `/core/engine.js?v=cb1`]));
+    loaded.push(await loadAny([`${BASE}/ui/dom-view.js?v=cb1`, `/ui/dom-view.js?v=cb1`]));
+    loaded.push(await loadAny([`${BASE}/core/dictionary.js?v=cb1`, `/core/dictionary.js?v=cb1`]));
+    // console.info('[Wordscend] Loaded scripts:', loaded);
+
+    // Load dictionary
     let allowedSet = null;
     try {
       const out = await window.WordscendDictionary.loadDWYL(ALLOWED_URL, { minLen: 4, maxLen: 7 });
@@ -335,8 +351,7 @@
       window.WordscendUI.mount(root, { rows:6, cols:5 });
       window.WordscendUI.setHUD(`Level ${store.levelIndex+1}/4`, store.score, store.streak.current);
     }
-  })
-  .catch(err => {
+  })().catch(err => {
     console.error('[Wordscend] Bootstrap failed:', err);
     root.innerHTML = '<div style="margin:24px 0;font:600 14px system-ui;color:var(--text);">Failed to load. Please refresh.</div>';
   });
