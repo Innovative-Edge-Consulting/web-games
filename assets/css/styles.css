@@ -53,12 +53,12 @@
 html,body{height:100%}
 body{
   margin:0;
-  background:var(--bg); /* app-controlled; Webflow bg overridden by ws-page-bg layer */
+  background:var(--bg);
   color:var(--text);
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
 }
 
-/* App-controlled backdrop */
+/* App-controlled backdrop (overrides host CMS/page bg) */
 .ws-page-bg{
   position:fixed;
   inset:0;
@@ -110,10 +110,10 @@ body{
   border:1px solid var(--border);
   background:var(--btnBg);
   cursor:pointer;
-  line-height:0; /* prevent cropping from text metrics */
+  line-height:0; /* avoids cropping from inline metrics */
 }
 
-/* Ensure the svg never gets cropped by the element box */
+/* Ensure the svg never gets cropped */
 .icon-btn svg{
   width:20px;
   height:20px;
@@ -156,7 +156,7 @@ body{
 }
 .ws-hud-right{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 
-/* Score pulse */
+/* Score pulse when chips land */
 @keyframes ws-pulse {
   0% { transform: scale(1); }
   40% { transform: scale(1.07); }
