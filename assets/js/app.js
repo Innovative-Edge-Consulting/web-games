@@ -255,7 +255,8 @@
       const answer = window.WordscendDictionary.pickToday(list);
 
       // Initialize engine
-      window.WordscendEngine.setAllowed(window.WordscendDictionary.allowedSet);
+      // ✅ Use the local allowedSet (works even if DWYL fetch fell back)
+      window.WordscendEngine.setAllowed(allowedSet);
       window.WordscendEngine.setAnswer(answer);
       const cfg = window.WordscendEngine.init({ rows:6, cols: levelLen });
 
@@ -284,7 +285,7 @@
           if (stInfo && stInfo.changed){
             window.WordscendUI.setHUD(`Level ${idx+1}/4`, store.score, store.streak.current);
             if (stInfo.showToast){
-              window.WordscendUI.showStreakToast(store.streak.current, {
+              window.WordscendUI.showStreakToast?.(store.streak.current, {
                 usedFreeze: stInfo.usedFreeze,
                 earnedFreeze: stInfo.earnedFreeze,
                 milestone: stInfo.milestone,
