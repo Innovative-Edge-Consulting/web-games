@@ -87,6 +87,26 @@
       g.gain.setValueAtTime(0.10, now);
       g.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
       o.stop(now + 0.2);
+    },
+    chime() {
+      // softer, friendlier than ding
+      if (!this._enabled()) return;
+      const ctx = this._ensure();
+      if (!ctx) return;
+      this._resumeIfNeeded();
+
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'triangle';
+      o.frequency.value = 660; // E5
+      g.gain.value = 0.06;
+      o.connect(g); g.connect(ctx.destination);
+
+      const now = ctx.currentTime;
+      o.start(now);
+      g.gain.setValueAtTime(0.07, now);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+      o.stop(now + 0.28);
     }
   };
   AudioFX.armAutoResumeOnce();
@@ -123,7 +143,6 @@
                   </svg>
                 </button>
                 <button class="icon-btn" id="ws-settings" type="button" title="Settings" aria-label="Settings">
-                  <!-- Safe gear: padded viewBox so strokes never crop -->
                   <svg viewBox="-1 -1 26 26" fill="none" aria-hidden="true">
                     <path d="M19.4 13.1a7.9 7.9 0 0 0 0-2.2l2-1.5-1.6-2.7-2.4.9a8 8 0 0 0-1.9-1.1l-.3-2.5h-3.2l-.3 2.5c-.7.2-1.3.6-1.9 1.1l-2.4-.9-1.6 2.7 2 1.5a7.9 7.9 0 0 0 0 2.2l-2 1.5 1.6 2.7 2.4-.9c.6.5 1.2.8 1.9 1.1l.3 2.5h3.2l.3-2.5c.7-.2 1.3-.6 1.9-1.1l2.4.9 1.6-2.7-2-1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                     <circle cx="12" cy="12" r="3.5" stroke="currentColor" stroke-width="1.5"/>
@@ -137,7 +156,7 @@
             <div class="ws-tag" id="ws-level">Level: -</div>
             <div class="ws-hud-right">
               <div class="ws-tag" id="ws-score">Score: 0</div>
-              <div class="ws-tag" id="ws-streak" title="Daily play streak">🔥 Streak 0</div>
+              <div class="ws-tag" id="ws-streak" title="Daily play streak" role="button" tabindex="0">🔥 Streak 0</div>
             </div>
           </div>
 
@@ -147,7 +166,7 @@
           </div>
 
           <div class="ws-kb" aria-label="On-screen keyboard"></div>
-        `;
+        ";
 
         // Cache refs
         this.levelEl = this.root.querySelector('#ws-level');
@@ -164,6 +183,9 @@
 
         // Bind header actions
         this.bindHeader();
+
+        // Streak tooltip on tap/click
+        this.bindStreakTooltip();
 
         // Bind physical keyboard ONCE per page
         this.bindKeyboard();
@@ -196,6 +218,63 @@
       const settings = this.root.querySelector('#ws-settings');
       info?.addEventListener('click', ()=> this.showRulesModal());
       settings?.addEventListener('click', ()=> this.showSettingsModal());
+    },
+
+    bindStreakTooltip(){
+      const anchor = this.streakEl;
+      if (!anchor) return;
+      const openTip = () => {
+        // clean previous
+        document.querySelector('.ws-streak-tip')?.remove();
+
+        const rect = anchor.getBoundingClientRect();
+        const tip = document.createElement('div');
+        tip.className = 'ws-streak-tip';
+        tip.innerHTML = `
+          <div><strong>Your daily streak</strong></div>
+          <div style="margin-top:4px;">Play at least one round today to keep it going. Earn a <strong>monthly freeze</strong> at day 7 to protect one missed day.</div>
+          <div class="row">
+            <button class="ws-btn" data-act="share">Share</button>
+            <button class="ws-btn" data-act="close">Close</button>
+          </div>
+        `;
+        document.body.appendChild(tip);
+
+        // position under the chip
+        const pad = 8;
+        tip.style.left = `${Math.min(Math.max(rect.left, 8), window.innerWidth - tip.offsetWidth - 8)}px`;
+        tip.style.top  = `${rect.bottom + pad}px`;
+
+        requestAnimationFrame(()=> tip.classList.add('show'));
+
+        const close = () => tip.remove();
+        tip.addEventListener('click', async (e)=>{
+          const btn = e.target.closest('button[data-act]');
+          if (!btn) return;
+          const act = btn.dataset.act;
+          if (act === 'close') close();
+          if (act === 'share') {
+            const text = document.querySelector('#ws-streak')?.textContent?.trim() || 'Streak';
+            if (navigator.share) {
+              try { await navigator.share({ text: `I'm on a ${text} in Wordscend 🔥` }); } catch{}
+            } else {
+              try { await navigator.clipboard.writeText(`I'm on a ${text} in Wordscend 🔥`); btn.textContent='Copied!'; } catch{}
+            }
+          }
+        }, { passive:true });
+
+        const onDocClick = (ev) => {
+          if (!tip.contains(ev.target) && ev.target !== anchor) {
+            close(); document.removeEventListener('pointerdown', onDocClick);
+          }
+        };
+        document.addEventListener('pointerdown', onDocClick, { passive:true });
+
+        window.addEventListener('keydown', (e)=>{ if (e.key==='Escape'){ close(); }}, { once:true });
+      };
+
+      anchor.addEventListener('click', openTip);
+      anchor.addEventListener('keydown', (e)=>{ if (e.key==='Enter' || e.key===' ') { e.preventDefault(); openTip(); }});
     },
 
     /* ---------- Rendering ---------- */
@@ -368,6 +447,41 @@
       }
     },
 
+    /* ---------- Streak toast & helpers ---------- */
+    showStreakToast(count, opts = {}) {
+      try{
+        const { usedFreeze, earnedFreeze, milestone, newBest, freezesAvail } = opts;
+        const toast = document.createElement('div');
+        toast.className = 'ws-streak-toast';
+        const line1 = usedFreeze
+          ? `Freeze used ❄️ — streak protected!`
+          : `Welcome back!`;
+        let sub = `Your streak is now ${count} 🔥`;
+        if (earnedFreeze) sub += ` • +1 freeze (this month)`;
+        if (typeof freezesAvail === 'number') sub += ` • ${freezesAvail} freeze${freezesAvail===1?'':'s'} available`;
+        if (milestone) sub = `Milestone: ${milestone} days 🔥`;
+        if (newBest) sub += ` • New best!`;
+
+        toast.innerHTML = `${line1}<span class="sub">${sub}</span>`;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(()=> toast.classList.add('show'));
+
+        // sounds
+        if (milestone) AudioFX.ding(); else AudioFX.chime();
+
+        // pulse the HUD chip
+        this.streakEl?.classList.remove('pulse'); void this.streakEl?.offsetWidth;
+        this.streakEl?.classList.add('pulse');
+        setTimeout(()=> this.streakEl?.classList.remove('pulse'), 300);
+
+        setTimeout(()=> {
+          toast.classList.remove('show');
+          setTimeout(()=> toast.remove(), 200);
+        }, 1600);
+      }catch{}
+    },
+
     /* ---------- Animations & Helpers ---------- */
     flipRevealRow(rowIndex, marks) {
       const rows = this.gridEl?.querySelectorAll('.ws-row');
@@ -386,16 +500,11 @@
             tile.classList.remove('state-correct','state-present','state-absent');
             tile.classList.add('state-' + mark);
 
-            // Visual points & sound, then LIVE score increment on chip landing
             if (mark === 'correct') {
-              if (global.WordscendApp_shouldScoreTile?.(tile.textContent, mark, rowIndex) !== false){
-                this.floatPointsFromTile(tile, +2, 'green');
-              }
+              this.floatPointsFromTile(tile, +2, 'green');
               AudioFX.ding();
             } else if (mark === 'present') {
-              if (global.WordscendApp_shouldScoreTile?.(tile.textContent, mark, rowIndex) !== false){
-                this.floatPointsFromTile(tile, +1, 'yellow');
-              }
+              this.floatPointsFromTile(tile, +1, 'yellow');
             }
           }
         }, delay + 210);
@@ -447,12 +556,12 @@
           chip.style.transitionTimingFunction = 'cubic-bezier(.22,.82,.25,1)';
           chip.style.left = `${midX}px`;
           chip.style.top  = `${midY}px`;
-          chip.style.transform = 'translate(-50%, -50%) scale(1.05)';
+          chip.style.transform = 'translate(-50%, -50%) scale(1.05)`;
 
           setTimeout(()=>{
             chip.style.left = `${sRect.left + sRect.width/2}px`;
             chip.style.top  = `${sRect.top  + sRect.height/2}px`;
-            chip.style.transform = 'translate(-50%, -50%) scale(0.8)';
+            chip.style.transform = 'translate(-50%, -50%) scale(0.8)`;
             chip.style.opacity = '0.0';
           }, 160);
         });
