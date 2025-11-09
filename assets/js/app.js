@@ -269,7 +269,7 @@
         if (!store.progress || typeof store.progress !== 'object') store.progress = {};
         store.progress[idx] = window.WordscendEngine.serializeState();
         if (!saveStore(store)) {
-          try { delete store.progress[idx]; } catch {}
+          delete store.progress[idx];
         }
       };
 
