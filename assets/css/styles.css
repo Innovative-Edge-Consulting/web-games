@@ -110,7 +110,7 @@ body{
   border:1px solid var(--border);
   background:var(--btnBg);
   cursor:pointer;
-  line-height:0; /* avoids cropping from inline metrics */
+  line-height:0;
 }
 
 /* Ensure the svg never gets cropped */
@@ -290,6 +290,49 @@ body{
   opacity:1;
   transform:translate(-50%, -50%) scale(1.05);
 }
+
+/* ===================== STREAK TOAST ===================== */
+.ws-streak-toast{
+  position:fixed;
+  left:50%;
+  top:72px; /* just under the topbar */
+  transform:translate(-50%, -8px);
+  background:var(--card);
+  color:var(--text);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:10px 14px;
+  font:700 14px/1.25 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  box-shadow:var(--bubbleShadow);
+  z-index:55;
+  opacity:0;
+  transition:opacity .2s ease, transform .2s ease;
+  pointer-events:none;
+}
+.ws-streak-toast.show{
+  opacity:1; transform:translate(-50%, 0);
+}
+.ws-streak-toast .sub{ display:block; font:600 12px/1.2 system-ui; color:var(--muted); margin-top:4px; }
+
+/* Anchored streak tooltip */
+.ws-streak-tip{
+  position:fixed;
+  background:var(--card);
+  color:var(--text);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:10px 12px;
+  font:600 13px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  box-shadow:var(--bubbleShadow);
+  z-index:56;
+  opacity:0;
+  transform:translateY(-6px);
+  transition:opacity .16s ease, transform .16s ease;
+  max-width:260px;
+}
+.ws-streak-tip.show{ opacity:1; transform:translateY(0); }
+.ws-streak-tip .row{ display:flex; gap:8px; margin-top:8px; }
+.ws-streak-tip .ws-btn{ padding:8px 10px; }
 
 /* ===================== MODALS / CARDS ===================== */
 .ws-modal,
