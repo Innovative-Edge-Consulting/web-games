@@ -53,9 +53,18 @@
 html,body{height:100%}
 body{
   margin:0;
-  background:var(--bg);
+  background:var(--bg); /* fallback if Webflow doesn't override */
   color:var(--text);
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+}
+
+/* ✅ App-controlled page backdrop: sits above Webflow page bg, below the app */
+.ws-page-bg{
+  position:fixed;
+  inset:0;
+  background:var(--bg);
+  pointer-events:none;
+  z-index:0; /* app UI uses higher z-index */
 }
 
 /* ===================== TOP BAR ===================== */
@@ -116,6 +125,8 @@ body{
 
 /* ===================== HUD ===================== */
 #game{
+  position:relative;   /* keep above the backdrop */
+  z-index:1;
   width:100%;
   max-width:720px;
   margin:24px auto 48px;
@@ -225,7 +236,7 @@ body{
   padding: 0 12px;
   -webkit-tap-highlight-color: transparent;
 
-  /* ✅ Center the whole keyboard block and align to stage width */
+  /* Center keyboard and align to stage width */
   max-width:560px;
   margin-left:auto;
   margin-right:auto;
@@ -379,17 +390,16 @@ body{
   /* Keep keyboard centered and within stage width */
   .ws-kb{ padding: 0 8px; gap: 8px; max-width:560px; margin-left:auto; margin-right:auto; }
 
-  /* ✅ Explicit column counts per row, and place items left-to-right */
   .ws-kb-row{
     gap: 6px;
     width:100%;
-    grid-auto-flow: row;              /* override the global 'column' on small screens */
-    justify-content: center;          /* center the grid tracks within the row */
+    grid-auto-flow: row;
+    justify-content: center;
     justify-items: stretch;
   }
   .ws-kb-row:nth-child(1){ grid-template-columns: repeat(10, 1fr); }
   .ws-kb-row:nth-child(2){ grid-template-columns: repeat(9,  1fr); }
-  .ws-kb-row:nth-child(3){ grid-template-columns: repeat(11, 1fr); } /* ⬅ fits Enter/Back spans */
+  .ws-kb-row:nth-child(3){ grid-template-columns: repeat(11, 1fr); } /* fits Enter/Back spans */
 
   .ws-kb-key{
     justify-self:stretch;
@@ -400,7 +410,6 @@ body{
     border-radius: 10px;
   }
 
-  /* Enter & Back occupy two cells for comfortable width */
   .ws-kb-enter, .ws-kb-back{
     grid-column: span 2;
     padding: clamp(10px, 2.4vw, 14px) clamp(10px, 3.2vw, 16px);
