@@ -223,7 +223,9 @@
       const status = global.WordscendEngine.getKeyStatus();
       this.kbEl.innerHTML = '';
 
-      KB_ROWS.forEach(row => {
+      const isMobile = window.matchMedia && window.matchMedia('(max-width: 430px)').matches;
+
+      KB_ROWS.forEach((row, ri) => {
         const rowEl = document.createElement('div');
         rowEl.className = 'ws-kb-row';
 
@@ -235,12 +237,21 @@
 
           if (key === 'Enter') {
             btn.classList.add('ws-kb-enter');
-            btn.textContent = 'Enter';
             btn.dataset.key = 'Enter';
+            // Compact label for mobile to avoid overflow
+            if (isMobile) {
+              btn.textContent = '⏎';
+              btn.setAttribute('aria-label','Enter');
+              btn.title = 'Enter';
+            } else {
+              btn.textContent = 'Enter';
+            }
           } else if (key === 'Back') {
             btn.classList.add('ws-kb-back');
             btn.textContent = '⌫';
             btn.dataset.key = 'Backspace';
+            btn.setAttribute('aria-label','Backspace');
+            btn.title = 'Backspace';
           } else {
             btn.textContent = key;
             btn.dataset.key = key;
@@ -389,7 +400,6 @@
               const already = awarded[letter] || 0;
 
               if (already < maxForLetter) {
-                // We are allowed to grant points for this letter occurrence
                 if (mark === 'correct') {
                   this.floatPointsFromTile(tile, +2, 'green');
                   AudioFX.ding();
@@ -398,7 +408,6 @@
                 }
                 awarded[letter] = already + 1;
               }
-              // else: no points (letter already fully “consumed” by prior awards)
             }
           }
         }, delay + 210);
@@ -528,7 +537,7 @@
         <div class="card" role="dialog" aria-label="How to play Wordscend">
           <h3>How to Play 🧩</h3>
           <p>Climb through <strong>4 levels</strong> of daily word puzzles — from 4-letter to 7-letter words. You have <strong>6 tries</strong> per level.</p>
-          <ul style="margin:6px 0 0 18px; color:var(--muted); line-height:1.5;">
+          <ul style="margin:6px 0 0 18px; color:var(--muted); line-height:1.3;">
             <li>Type or tap to guess a word of the current length.</li>
             <li>Tiles turn <strong>green</strong> (correct spot) or <strong>yellow</strong> (in word, wrong spot).</li>
             <li>Beat a level to advance to the next length.</li>
