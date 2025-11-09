@@ -10,7 +10,7 @@
     win: false,
     answer: 'APPLE',
     allowed: new Set(),
-    keyStatus: {}, // letter -> 'correct' | 'present' | 'absent'
+    keyStatus: {},
   };
 
   function init(cfg) {
@@ -58,13 +58,11 @@
     const ans = STATE.answer.split('');
     const g = guess.slice();
 
-    // mark counts for answer letters
     const counts = {};
     ans.forEach(ch => { counts[ch] = (counts[ch] || 0) + 1; });
 
     const marks = Array(STATE.cols).fill('absent');
 
-    // First pass: correct
     for (let i = 0; i < STATE.cols; i++) {
       if (g[i] === ans[i]) {
         marks[i] = 'correct';
@@ -72,7 +70,6 @@
       }
     }
 
-    // Second pass: present
     for (let i = 0; i < STATE.cols; i++) {
       if (marks[i] === 'correct') continue;
       const ch = g[i];
@@ -93,7 +90,7 @@
         STATE.keyStatus[ch] = 'correct';
       } else if (mark === 'present') {
         if (current !== 'correct') STATE.keyStatus[ch] = 'present';
-      } else { // absent
+      } else {
         if (!current) STATE.keyStatus[ch] = 'absent';
       }
     }
