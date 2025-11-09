@@ -1,21 +1,34 @@
-// /assets/js/app.js
+// /assets/js/app.js — Wordscend (Bloom + Streaks + Live Scoring + Theme)
+/* =========================================================================
+   This file boots the game, pre-applies theme (to avoid flash), wires the
+   Bloom filter for offline guess validation, uses DWYL only to enumerate
+   per-length answers, and preserves:
+   - Daily streak tracking
+   - Score HUD + live-chip increments + per-level bonus
+   - URL QA params (?level, ?endcard, ?score, ?reset, ?intro, ?settings)
+   - Rules / Settings modals
+   ======================================================================= */
 (function () {
   /* ---------- Pre-apply Theme to avoid flash ---------- */
   (function initThemeEarly(){
     try{
       const pref = localStorage.getItem('ws_theme') || 'dark';
-      const el = document.documentElement;
-      const apply = (p) => el.setAttribute('data-theme', p==='auto'
-        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-        : p
-      );
+      const apply = (p) => {
+        const el = document.documentElement;
+        if (p === 'auto') {
+          const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          el.setAttribute('data-theme', dark ? 'dark' : 'light');
+        } else {
+          el.setAttribute('data-theme', p);
+        }
+      };
       apply(pref);
       if (pref === 'auto') {
         const mq = window.matchMedia('(prefers-color-scheme: dark)');
-        const cb = (e)=> apply('auto');
+        const cb = () => apply('auto');
         mq.addEventListener?.('change', cb);
-        // store a weak ref so GC can clean up later; not critical
-        window.__ws_theme_mql = mq; window.__ws_theme_cb = cb;
+        window.__ws_theme_mql = mq;
+        window.__ws_theme_cb  = cb;
       }
     }catch{}
   })();
@@ -63,8 +76,8 @@
 
   /* ---------------- Config ---------------- */
   const BASE = 'https://innovative-edge-consulting.github.io/web-games';
-  const ALLOWED_URL = 'https://raw.githubusercontent.com/dwyl/english-words/master/words.txt';
-  const SCORE_TABLE = [100, 70, 50, 35, 25, 18]; // per-level bonus
+  const ALLOWED_URL = 'https://raw.githubusercontent.com/dwyl/english-words/master/words.txt'; // used only to enumerate answers by length
+  const SCORE_TABLE = [100, 70, 50, 35, 25, 18]; // per-level bonus by attempt 1..6
   const LEVEL_LENGTHS = [4, 5, 6, 7];
   const STORE_KEY = 'wordscend_v3';
 
@@ -109,10 +122,9 @@
       return defaultStore();
     }
   }
-
   function saveStore(s){ localStorage.setItem(STORE_KEY, JSON.stringify(s)); }
 
-  // Mark "played today" on first valid guess processed
+  // Mark "played today" on first valid processed guess (for streak)
   function markPlayedToday(store) {
     const today = todayKey();
     const st = store.streak;
@@ -142,7 +154,7 @@
     return store;
   }
 
-  /* ---------------- Bootstrap ---------------- */
+  /* ---------------- Bootstrap shell ---------------- */
   const root = document.getElementById('game') || document.body;
   root.innerHTML = '<div style="margin:24px 0;font:600 14px system-ui;color:var(--text);opacity:.8;">Loading word list…</div>';
 
@@ -162,12 +174,23 @@
     } catch {}
   };
 
+  /* ---------------- Load modules (Bloom first) ---------------- */
   Promise.all([
-    loadScript(`${BASE}/core/engine.js?v=header-1`),
-    loadScript(`${BASE}/ui/dom-view.js?v=header-2-theme`),
-    loadScript(`${BASE}/core/dictionary.js?v=header-1`)
+    loadScript(`${BASE}/core/bloom.js?v=1`),             // Bloom filter loader (validation)
+    loadScript(`${BASE}/core/engine.js?v=header-1`),     // Game engine state
+    loadScript(`${BASE}/ui/dom-view.js?v=header-2-theme`), // UI
+    loadScript(`${BASE}/core/dictionary.js?v=header-1`)  // DWYL loader + pickToday
   ])
   .then(async () => {
+    // 1) Load Bloom (validation for guesses)
+    const bloom = await window.WordscendBloom.loadBloom(
+      `${BASE}/data/bloom-4to7-v1.bin`,
+      `${BASE}/data/bloom-4to7-v1.json`
+    );
+    // Adapter so engine can call .has(...)
+    const allowedAdapter = { has: (w) => bloom.has(String(w||'').toLowerCase()) };
+
+    // 2) Load DWYL once to enumerate answers by length (we still filter in dictionary.js)
     const { allowedSet } = await window.WordscendDictionary.loadDWYL(ALLOWED_URL, {
       minLen: 4, maxLen: 7
     });
@@ -191,28 +214,29 @@
 
     /* ------------ functions ------------ */
     async function startLevel(idx){
-      const LEVEL_LENGTHS = [4,5,6,7];
       const levelLen = LEVEL_LENGTHS[idx];
 
-      const curated = window.WordscendDictionary.answersOfLength(levelLen);
-      const list = curated && curated.length
-        ? curated
-        : Array.from(allowedSet).filter(w => w.length === levelLen);
+      // Use Bloom adapter for guess validation
+      window.WordscendEngine.setAllowed(allowedAdapter);
 
+      // Build the per-length answer pool from DWYL once, then pick today's
+      const list = Array.from(allowedSet).filter(w => w.length === levelLen);
       const answer = window.WordscendDictionary.pickToday(list);
 
-      window.WordscendEngine.setAllowed(allowedSet);
       window.WordscendEngine.setAnswer(answer);
       const cfg = window.WordscendEngine.init({ rows:6, cols: levelLen });
 
       window.WordscendUI.mount(root, cfg);
       window.WordscendUI.setHUD(`Level ${idx+1}/4`, store.score, store.streak.current);
 
+      // Intercept submitRow to:
+      // - mark streak "played today" on any valid processed row
+      // - award per-level bonus on win
       const origSubmit = window.WordscendEngine.submitRow.bind(window.WordscendEngine);
       window.WordscendEngine.submitRow = function(){
         const res = origSubmit();
 
-        // Count "played" on any valid processed row
+        // Count "played today" on the first valid processed guess
         if (res && res.ok) {
           if (markPlayedToday(store)) {
             window.WordscendUI.setHUD(`Level ${idx+1}/4`, store.score, store.streak.current);
@@ -222,9 +246,9 @@
         if (res && res.ok && res.done) {
           if (res.win) {
             const attempt = res.attempt ?? 6;
-            const gained = [100,70,50,35,25,18][Math.min(Math.max(attempt,1),6) - 1] || 0;
+            const gained  = SCORE_TABLE[Math.min(Math.max(attempt,1),6) - 1] || 0;
 
-            // Add per-level bonus on top of live chip points
+            // Add per-level bonus on top of live tile points
             store.score += gained;
             saveStore(store);
 
@@ -235,7 +259,7 @@
             setTimeout(() => {
               if (isLast) {
                 window.WordscendUI.showEndCard(store.score, store.streak.current, store.streak.best);
-                // Reset for next daily
+                // Prepare for next daily (streak persists)
                 store.day = todayKey();
                 store.score = 0;
                 store.levelIndex = 0;
