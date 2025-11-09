@@ -139,7 +139,7 @@
         </div>
 
         <div class="ws-kb" aria-label="On-screen keyboard"></div>
-      ";
+      `; // <-- FIX 1: proper closing backtick for template literal
 
       // Cache refs
       this.levelEl = this.root.querySelector('#ws-level');
@@ -417,7 +417,7 @@
           setTimeout(()=>{
             chip.style.left = `${sRect.left + sRect.width/2}px`;
             chip.style.top  = `${sRect.top  + sRect.height/2}px`;
-            chip.style.transform = 'translate(-50%, -50%) scale(0.8)`;
+            chip.style.transform = 'translate(-50%, -50%) scale(0.8)'; // <-- FIX 2: matching quotes
             chip.style.opacity = '0.0';
           }, 160);
         });
@@ -427,9 +427,9 @@
           if (typeof window.WordscendApp_addScore === 'function') {
             window.WordscendApp_addScore(delta);
           }
-          scoreEl.classList.remove('pulse'); void scoreEl.offsetWidth;
-          scoreEl.classList.add('pulse');
-          setTimeout(()=>scoreEl.classList.remove('pulse'), 260);
+          this.scoreEl.classList.remove('pulse'); void this.scoreEl.offsetWidth;
+          this.scoreEl.classList.add('pulse');
+          setTimeout(()=>this.scoreEl.classList.remove('pulse'), 260);
         }, 480);
       }catch{}
     },
