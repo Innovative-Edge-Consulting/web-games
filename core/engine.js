@@ -26,7 +26,16 @@
   }
 
   function setAnswer(word) { STATE.answer = (word || '').toUpperCase(); }
-  function setAllowed(set) { STATE.allowed = set || new Set(); }
+  function setAllowed(set) {
+    // Normalize to uppercase to match internal comparisons
+    if (set && set instanceof Set) {
+      const up = new Set();
+      set.forEach(w => up.add(String(w || '').toUpperCase()));
+      STATE.allowed = up;
+    } else {
+      STATE.allowed = new Set();
+    }
+  }
 
   function getBoard() { return STATE.board.map(r => r.slice()); }
   function getRowMarks(){ return STATE.rowMarks.map(r => r.slice()); }
@@ -34,7 +43,6 @@
   function isDone(){ return STATE.done; }
   function getKeyStatus(){ return { ...STATE.keyStatus }; }
 
-  // ---- snapshot/hydrate for progress persistence ----
   function snapshot(){
     return {
       rows: STATE.rows,
@@ -137,7 +145,7 @@
         STATE.keyStatus[ch] = 'correct';
       } else if (mark === 'present') {
         if (current !== 'correct') STATE.keyStatus[ch] = 'present';
-      } else { // absent
+      } else {
         if (!current) STATE.keyStatus[ch] = 'absent';
       }
     }
