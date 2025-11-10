@@ -55,10 +55,103 @@
     return Math.round((db-da)/86400000);
   }
 
+  /* ---------------- Deterministic RNG (for daily answer) ---------------- */
+  // Small, fast seed hash + PRNG
+  function xmur3(str) {
+    let h = 1779033703 ^ str.length;
+    for (let i = 0; i < str.length; i++) {
+      h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+      h = (h << 13) | (h >>> 19);
+    }
+    return function() {
+      h = Math.imul(h ^ (h >>> 16), 2246822507);
+      h = Math.imul(h ^ (h >>> 13), 3266489909);
+      h ^= h >>> 16;
+      return h >>> 0;
+    };
+  }
+  function mulberry32(a) {
+    return function() {
+      let t = a += 0x6D2B79F5;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /* ---------------- Inline Dictionary Loader ---------------- */
+  const WordscendDict = (() => {
+    const state = {
+      allowedSet: new Set(),
+      byLen: new Map() // len -> array
+    };
+
+    function rejectToken(tok, {minLen=4, maxLen=7} = {}) {
+      if (!tok) return true;
+      if (!/^[A-Z]+$/.test(tok)) return true;                  // only letters
+      if (tok.length < minLen || tok.length > maxLen) return true;
+      // Block uniform repeats like 'OOOO', 'PPPP' etc.
+      const first = tok[0];
+      if (tok.split('').every(ch => ch === first)) return true;
+      return false;
+    }
+
+    async function loadViaURL(url, opts) {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Word list fetch failed: ' + res.status);
+      const text = await res.text();
+
+      const lines = text.split(/\r?\n/);
+      const allowed = new Set();
+      const byLen = new Map();
+
+      for (let raw of lines) {
+        if (!raw) continue;
+        let w = raw.trim();
+        if (!w) continue;
+        w = w.toUpperCase();
+
+        if (rejectToken(w, opts)) continue;
+
+        allowed.add(w);
+        const L = w.length;
+        if (!byLen.has(L)) byLen.set(L, []);
+        byLen.get(L).push(w);
+      }
+
+      // Freeze into state
+      state.allowedSet = allowed;
+      state.byLen = byLen;
+      return { allowedSet: state.allowedSet };
+    }
+
+    function answersOfLength(len) {
+      return state.byLen.get(len) || [];
+    }
+
+    function pickToday(len, ymd = todayKey()) {
+      const list = answersOfLength(len);
+      if (!list.length) return 'APPLE'.slice(0, len); // emergency fallback
+      const seedStr = `${ymd}::len=${len}::wordscend`;
+      const seed = xmur3(seedStr)();
+      const rnd = mulberry32(seed);
+      const idx = Math.floor(rnd() * list.length);
+      return list[idx];
+    }
+
+    return {
+      loadViaURL,
+      answersOfLength,
+      pickToday,
+      get allowedSet(){ return state.allowedSet; }
+    };
+  })();
+
   /* ---------------- Config ---------------- */
   const BASE = 'https://innovative-edge-consulting.github.io/web-games';
+  // You can switch this to jeremy-rifkin/Wordlist if desired; current keeps DWYL for continuity.
   const ALLOWED_URL = 'https://raw.githubusercontent.com/dwyl/english-words/master/words.txt';
-  const SCORE_TABLE = [100, 70, 50, 35, 25, 18];
+  const SCORE_TABLE = [100, 70, 50, 35, 25, 18]; // per-level bonus
   const LEVEL_LENGTHS = [4, 5, 6, 7];
   const STORE_KEY = 'wordscend_v3';
 
@@ -104,7 +197,6 @@
         parsed.score = 0;
         parsed.levelIndex = 0;
         parsed.streak.markedToday = false;
-        // keep progress object; stale days are ignored by the restore gate
       }
       if (parsed.levelLen && parsed.levelIndex == null) {
         const idx = Math.max(0, LEVEL_LENGTHS.indexOf(parsed.levelLen));
@@ -184,26 +276,6 @@
 
   const store = applyUrlOverrides(loadStore());
 
-  // Public app surface for UI queries (safe getters)
-  window.WordscendApp = window.WordscendApp || {};
-  window.WordscendApp.getStreakInfo = function(){
-    try {
-      const s = store.streak || {};
-      return {
-        current: Number(s.current || 0),
-        best: Number(s.best || 0),
-        available: Number(s.available || 0)
-      };
-    } catch { return { current:0, best:0, available:0 }; }
-  };
-  window.WordscendApp.getLastStreakFlags = function(){
-    try {
-      const f = window.WordscendApp._lastStreakFlags;
-      if (f && f.day === todayKey()) return f;
-      return null;
-    } catch { return null; }
-  };
-
   // Global live-score hook used by UI chips
   window.WordscendApp_addScore = function(delta){
     try {
@@ -222,23 +294,26 @@
     try{
       if (!window.WordscendEngine || !window.WordscendEngine.snapshot) return;
       const snap = window.WordscendEngine.snapshot();
-      const len = LEVEL_LENGTHS[store.levelIndex];
+      const len = [4,5,6,7][store.levelIndex];
       store.progress[len] = { day: store.day, state: snap };
       saveStore(store);
     }catch{}
   };
 
   (async () => {
-    // load order matters
+    // load order matters (dictionary now inlined, so we skip it)
     await loadAny([`${BASE}/core/engine.js?v=state1`, `/core/engine.js?v=state1`]);
     await loadAny([`${BASE}/ui/dom-view.js?v=state1`, `/ui/dom-view.js?v=state1`]);
-    await loadAny([`${BASE}/core/dictionary.js?v=state1`, `/core/dictionary.js?v=state1`]);
 
-    const { allowedSet } = await window.WordscendDictionary.loadDWYL(ALLOWED_URL, { minLen: 4, maxLen: 7 }).catch(()=>{
+    // Load allowed words
+    let allowedSet;
+    try{
+      ({ allowedSet } = await WordscendDict.loadViaURL(ALLOWED_URL, { minLen: 4, maxLen: 7 }));
+    }catch{
       const fallback = ['TREE','CAMP','WATER','STONE','LIGHT','BRAVE','FAMILY','MARKET','GARDEN','PLANET'];
-      window.WordscendDictionary._allowedSet = new Set(fallback);
-      return { allowedSet: window.WordscendDictionary._allowedSet };
-    });
+      fallback.forEach(w => w = w.toUpperCase());
+      allowedSet = new Set(fallback);
+    }
 
     const qp = getParams();
 
@@ -265,19 +340,19 @@
     }
 
     async function startLevel(idx){
-      const levelLen = LEVEL_LENGTHS[idx];
+      const levelLen = [4,5,6,7][idx];
 
-      const curated = window.WordscendDictionary.answersOfLength(levelLen);
-      const list = curated && curated.length
+      const curated = WordscendDict.answersOfLength(levelLen);
+      const list = (curated && curated.length)
         ? curated
         : Array.from(allowedSet).filter(w => w.length === levelLen);
 
-      const answer = window.WordscendDictionary.pickToday(list);
+      const answer = WordscendDict.pickToday(levelLen);
 
       // Initialize engine
-      window.WordscendEngine.setAllowed(window.WordscendDictionary.allowedSet);
+      window.WordscendEngine.setAllowed(WordscendDict.allowedSet || allowedSet);
       window.WordscendEngine.setAnswer(answer);
-      const cfg = window.WordscendEngine.init({ rows:6, cols: levelLen });
+      window.WordscendEngine.init({ rows:6, cols: levelLen });
 
       // ---- Restore progress if same day & same level length ----
       const restorePack = store.progress[levelLen];
@@ -301,27 +376,19 @@
         // Count "played" on any valid processed row
         if (res && res.ok) {
           const stInfo = markPlayedToday(store);
-
           if (stInfo && stInfo.changed){
-            // remember flags for today's tip
-            window.WordscendApp._lastStreakFlags = {
-              usedFreeze: !!stInfo.usedFreeze,
-              earnedFreeze: !!stInfo.earnedFreeze,
-              milestone: stInfo.milestone || null,
-              newBest: !!stInfo.newBest,
-              day: todayKey()
-            };
-
             window.WordscendUI.setHUD(`Level ${idx+1}/4`, store.score, store.streak.current);
-
             if (stInfo.showToast){
-              window.WordscendUI.showStreakToast(store.streak.current, {
-                usedFreeze: stInfo.usedFreeze,
-                earnedFreeze: stInfo.earnedFreeze,
-                milestone: stInfo.milestone,
-                newBest: stInfo.newBest,
-                freezesAvail: store.streak.available
-              });
+              // Optional: attach a toast API in UI if you add one; safe no-op here
+              if (window.WordscendUI.showStreakToast) {
+                window.WordscendUI.showStreakToast(store.streak.current, {
+                  usedFreeze: stInfo.usedFreeze,
+                  earnedFreeze: stInfo.earnedFreeze,
+                  milestone: stInfo.milestone,
+                  newBest: stInfo.newBest,
+                  freezesAvail: store.streak.available
+                });
+              }
             }
           }
         }
@@ -377,7 +444,7 @@
       window.WordscendUI.setHUD(`Level ${store.levelIndex+1}/4`, store.score, store.streak.current);
     }
 
-    // Also persist on key letters/backspace steps triggered from UI
+    // Persist on unload as a safety
     window.addEventListener('beforeunload', () => {
       try{ window.WordscendApp_onStateChange && window.WordscendApp_onStateChange(); }catch{}
     });
