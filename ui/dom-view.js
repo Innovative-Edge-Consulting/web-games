@@ -105,25 +105,35 @@
         const bg = document.createElement('div'); bg.className='ws-page-bg'; document.body.appendChild(bg);
       }
 
-      this.root.innerHTML = `
-        <div class="ws-topbar">
-          <div class="ws-topbar-inner">
-            <div class="ws-brand" role="banner" aria-label="Wordscend">
-              <span class="dot"></span> Wordscend
-            </div>
-            <div class="ws-actions">
-              <button class="icon-btn" id="ws-info" type="button" title="How to play" aria-label="How to play">
-                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M12 8.5h.01M11 11.5h1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-              </button>
-              <button class="icon-btn" id="ws-settings" type="button" title="Settings" aria-label="Settings">
-                <svg viewBox="-1 -1 26 26" fill="none" aria-hidden="true">
-                  <path d="M19.4 13.1a7.9 7.9 0 0 0 0-2.2l2-1.5-1.6-2.7-2.4.9a8 8 0 0 0-1.9-1.1l-.3-2.5h-3.2l-.3 2.5c-.7.2-1.3.6-1.9 1.1l-2.4-.9-1.6 2.7 2 1.5a7.9 7.9 0 0 0 0 2.2l-2 1.5 1.6 2.7 2.4-.9c.6.5 1.2.8 1.9 1.1l2.4.9 1.6-2.7-2-1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-                  <circle cx="12" cy="12" r="3.5" stroke="currentColor" stroke-width="1.5"></circle>
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
+     this.root.innerHTML = `
+  <div class="ws-topbar">
+    <div class="ws-topbar-inner">
+      <div class="ws-brand" role="banner" aria-label="Wordscend">
+        <span class="dot"></span> Wordscend
+      </div>
+      <div class="ws-actions">
+        <button class="icon-btn" id="ws-info" type="button" title="How to play" aria-label="How to play">
+          <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M12 8.5h.01M11 11.5h1v4"
+                  stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+
+        <!-- 👇 THIS is the Settings gear icon -->
+        <button class="icon-btn" id="ws-settings" type="button" title="Settings" aria-label="Settings">
+          <svg viewBox="-1 -1 26 26" fill="none" aria-hidden="true">
+            <path d="M19.4 13.1a7.9 7.9 0 0 0 0-2.2l2-1.5-1.6-2.7-2.4.9a8 8 0 0 0-1.9-1.1l-.3-2.5h-3.2l-.3 2.5
+                     c-.7.2-1.3.6-1.9 1.1l-2.4-.9-1.6 2.7 2 1.5a7.9 7.9 0 0 0 0 2.2l-2 1.5
+                     1.6 2.7 2.4-.9c.6.5 1.2.8 1.9 1.1l2.4.9 1.6-2.7-2-1.5Z"
+                  stroke="currentColor" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"></path>
+            <circle cx="12" cy="12" r="3.5" stroke="currentColor" stroke-width="1.5"></circle>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
 
         <div class="ws-hud">
           <div class="ws-tag" id="ws-level">Level: -</div>
