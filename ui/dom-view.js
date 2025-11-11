@@ -95,7 +95,6 @@
   const UI = {
     mount(rootEl, config) {
       if (!rootEl) return;
-      // Idempotent re-mount: wipe only our region
       this.root = rootEl;
       this.config = config || { rows:6, cols:5 };
 
@@ -116,9 +115,8 @@
                 <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M12 8.5h.01M11 11.5h1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
               </button>
               <button class="icon-btn" id="ws-settings" type="button" title="Settings" aria-label="Settings">
-                <!-- widen the viewport so strokes don't get clipped at edges -->
-                <svg viewBox="-3 -3 30 30" fill="none" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
-                  <path d="M19.4 13.1a7.9 7.9 0 0 0 0-2.2l2-1.5-1.6-2.7-2.4.9a8 8 0 0 0-1.9-1.1l-.3-2.5h-3.2l-.3 2.5c-.7.2-1.3.6-1.9 1.1l-2.4-.9-1.6 2.7 2 1.5a7.9 7.9 0 0 0 0 2.2l-2 1.5 1.6 2.7 2.4-.9c.6.5 1.2.8 1.9 1.1l.3 2.5h3.2l.3-2.5c.7-.2 1.3-.6 1.9-1.1l2.4.9 1.6-2.7-2-1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                <svg viewBox="-1 -1 26 26" fill="none" aria-hidden="true">
+                  <path d="M19.4 13.1a7.9 7.9 0 0 0 0-2.2l2-1.5-1.6-2.7-2.4.9a8 8 0 0 0-1.9-1.1l-.3-2.5h-3.2l-.3 2.5c-.7.2-1.3.6-1.9 1.1l-2.4-.9-1.6 2.7 2 1.5a7.9 7.9 0 0 0 0 2.2l-2 1.5 1.6 2.7 2.4-.9c.6.5 1.2.8 1.9 1.1l2.4.9 1.6-2.7-2-1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
                   <circle cx="12" cy="12" r="3.5" stroke="currentColor" stroke-width="1.5"></circle>
                 </svg>
               </button>
@@ -195,7 +193,7 @@
           const ch = row[c] || '';
           tile.textContent = ch;
 
-          const mark = marks[r]?.[c];
+          const mark = (marks[r] && marks[r][c]) || null;
           if (mark) tile.classList.add('state-' + mark);
 
           if (ch) tile.classList.add('filled');
@@ -402,7 +400,7 @@
           chip.style.transitionTimingFunction = 'cubic-bezier(.22,.82,.25,1)';
           chip.style.left = `${midX}px`;
           chip.style.top  = `${midY}px`;
-          chip.style.transform = 'translate(-50%, -50%) scale(1.05)';
+          chip.style.transform = 'translate(-50%, -50%) scale(1.05)`;
 
           setTimeout(()=>{
             chip.style.left = `${sRect.left + sRect.width/2}px`;
@@ -466,10 +464,23 @@
       window.addEventListener('keydown', (e)=>{ if (e.key==='Escape'){ wrap.remove(); }}, { once:true });
     },
 
+    /* ---------- Modals ---------- */
     showRulesModal() {
       document.querySelector('.ws-modal')?.remove();
       const wrap = document.createElement('div');
       wrap.className = 'ws-modal';
+
+      // Build a real single game row as the example (no awkward spacing)
+      const exampleRowHTML = `
+        <div class="ws-row" style="display:grid;grid-template-columns:repeat(5,var(--tileSize));gap:8px;margin-top:8px;">
+          <div class="ws-tile filled state-correct">C</div>
+          <div class="ws-tile filled state-present">A</div>
+          <div class="ws-tile filled state-absent">T</div>
+          <div class="ws-tile filled state-absent">S</div>
+          <div class="ws-tile filled state-present">Y</div>
+        </div>
+      `;
+
       wrap.innerHTML = `
         <div class="card" role="dialog" aria-label="How to play Wordscend">
           <h3>How to Play 🧩</h3>
@@ -480,18 +491,13 @@
             <li>Beat a level to advance to the next length.</li>
             <li>Keep your <strong>🔥 streak</strong> by playing each day.</li>
           </ul>
-          <div class="ws-mini-row" aria-hidden="true">
-            <div class="ws-mini-tile correct">C</div>
-            <div class="ws-mini-tile present">A</div>
-            <div class="ws-mini-tile absent">T</div>
-            <div class="ws-mini-tile absent">S</div>
-            <div class="ws-mini-tile present">Y</div>
-          </div>
-          <div class="row">
+          ${exampleRowHTML}
+          <div class="row" style="margin-top:10px;">
             <button class="ws-btn primary" data-action="close">Got it</button>
           </div>
         </div>
       `;
+
       document.body.appendChild(wrap);
       wrap.addEventListener('click', (e)=>{
         if (e.target.dataset.action === 'close' || e.target === wrap) wrap.remove();
