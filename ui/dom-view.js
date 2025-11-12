@@ -516,35 +516,67 @@
 
     /* ---------- Streak toast / Hint toast ---------- */
     showStreakToast(streak, opts){
-      // opts may include: usedFreeze, earnedFreeze, milestone, newBest, freezesAvail, hintText
-      document.querySelector('.ws-streak-toast')?.remove();
+      // If it's a hint, show a persistent toast with a Close button.
+      if (typeof opts?.hintText === 'string') {
+        // Remove any existing hint toast (but leave regular streak ones alone)
+        const oldHint = document.querySelector('.ws-streak-toast.ws-hint');
+        if (oldHint) oldHint.remove();
+
+        const wrap = document.createElement('div');
+        wrap.className = 'ws-streak-toast ws-hint';
+        // Simple, safe HTML (no backticks)
+        wrap.innerHTML =
+          '<div style="display:flex;align-items:flex-start;gap:10px;max-width:520px;">' +
+            '<div style="flex:1 1 auto;">' +
+              '<strong>Hint</strong>' +
+              '<span class="sub">' + String(opts.hintText) + '</span>' +
+            '</div>' +
+            '<button class="ws-btn" data-action="close" style="white-space:nowrap;">Close</button>' +
+          '</div>';
+
+        document.body.appendChild(wrap);
+        requestAnimationFrame(function(){ wrap.classList.add('show'); });
+
+        // Close handlers
+        const close = function(){ 
+          wrap.classList.remove('show'); 
+          setTimeout(function(){ wrap.remove(); }, 220); 
+        };
+        wrap.addEventListener('click', function(e){
+          const btn = e.target.closest('button[data-action="close"]');
+          if (btn) close();
+        }, { passive: true });
+        window.addEventListener('keydown', function onEsc(e){
+          if (e.key === 'Escape'){ 
+            window.removeEventListener('keydown', onEsc, { once:true });
+            close(); 
+          }
+        }, { once:true });
+
+        return;
+      }
+
+      // Regular streak toast (auto-hide like before)
+      document.querySelector('.ws-streak-toast:not(.ws-hint)')?.remove();
       const wrap = document.createElement('div');
       wrap.className = 'ws-streak-toast';
 
-      let main = '';
-      let sub = '';
+      var main = '🔥 Streak ' + String(streak ?? 0);
+      var notes = [];
+      if (opts?.usedFreeze) notes.push('Used 1 freeze');
+      if (opts?.earnedFreeze) notes.push('+1 freeze earned');
+      if (opts?.milestone) notes.push('Milestone ' + String(opts.milestone) + '!');
+      if (opts?.newBest) notes.push('New best!');
+      if (Number.isFinite(opts?.freezesAvail)) notes.push('Freezes: ' + String(opts.freezesAvail));
+      var sub = notes.join(' • ');
 
-      if (typeof opts?.hintText === 'string') {
-        main = 'Hint';
-        sub = opts.hintText;
-      } else {
-        main = `🔥 Streak ${streak ?? 0}`;
-        const notes = [];
-        if (opts?.usedFreeze) notes.push('Used 1 freeze');
-        if (opts?.earnedFreeze) notes.push('+1 freeze earned');
-        if (opts?.milestone) notes.push(`Milestone ${opts.milestone}!`);
-        if (opts?.newBest) notes.push('New best!');
-        if (Number.isFinite(opts?.freezesAvail)) notes.push(`Freezes: ${opts.freezesAvail}`);
-        sub = notes.join(' • ');
-      }
-
-      wrap.innerHTML = `<div><strong>${main}</strong>${sub ? `<span class="sub">${sub}</span>`:''}</div>`;
+      wrap.innerHTML = '<div><strong>' + main + '</strong>' + (sub ? '<span class="sub">' + sub + '</span>' : '') + '</div>';
       document.body.appendChild(wrap);
 
-      requestAnimationFrame(()=> wrap.classList.add('show'));
-      setTimeout(()=> {
+      requestAnimationFrame(function(){ wrap.classList.add('show'); });
+      setTimeout(function(){
         wrap.classList.remove('show');
-        setTimeout(()=> wrap.remove(), 220);
+        setTimeout(function(){ wrap.remove(); }, 220);
       }, 2600);
     },
 
