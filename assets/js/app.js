@@ -56,7 +56,7 @@
   }
 
   /* ---------------- Config ---------------- */
-  const BASE = 'https://innovative-edge-consulting.github.io/web-games';
+  const BASE = 'https://innovative-edge-consulting.github.io/wordhive';
   const ANSWERS_URL = `${BASE}/data/answers.json`;
   const ALLOWED_URL = `${BASE}/data/allowed.json`; // optional; falls back to answers
   const SCORE_TABLE = [100, 70, 50, 35, 25, 18]; // per-level bonus
