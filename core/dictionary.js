@@ -26,8 +26,8 @@
 
       // Helpers
       const normWord = (w) => (w || '').toUpperCase().trim();
-      const isAlpha = (w) => /^[A-Z]+$/.test(w);
-      const isClean = (w) => isAlpha(w) && w.length >= minLen && w.length <= maxLen && !/^([A-Z])\1+$/.test(w);
+      const isAlpha  = (w) => /^[A-Z]+$/.test(w);
+      const isClean  = (w) => isAlpha(w) && w.length >= minLen && w.length <= maxLen && !/^([A-Z])\1+$/.test(w);
 
       // Normalize entries that can be string or object { w, hint?, def? }
       const normalizeEntry = (entry) => {
@@ -65,12 +65,16 @@
         }
       }
 
-      // Build allowed set (fallback to answers)
+      // Build allowed set (fallback to answers, extracting .w when needed)
       const allowedAll = [];
       for (let L = minLen; L <= maxLen; L++) {
         const key = String(L);
         const src = Array.isArray(allowedJson[key]) ? allowedJson[key] : (answersJson[key] || []);
-        const cleaned = src.map(normWord).filter(isClean);
+        // Safely extract words whether src entries are strings or { w, ... } objects
+        const words = src
+          .map(e => (typeof e === 'string' ? e : (e && typeof e.w === 'string' ? e.w : null)))
+          .filter(Boolean);
+        const cleaned = words.map(normWord).filter(isClean);
         allowedAll.push(...cleaned);
       }
       this._allowedSet = new Set(allowedAll);
