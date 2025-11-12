@@ -1,110 +1,5 @@
 // /assets/js/app.js
 (function () {
-  /* ---------------- Monetization (feature-flagged) ---------------- */
-  // Flip this to true when your domain is approved in AdSense and you’re ready to show ads.
-  const ENABLE_ADSENSE = false;
-  const ADSENSE_CLIENT_ID = 'ca-pub-XXXXXXXXXXXXXXX'; // <-- replace when enabling
-
-  let _adsCssInjected = false;
-
-  function injectAdsCSS() {
-    if (_adsCssInjected) return;
-    _adsCssInjected = true;
-    const css = `
-      .ws-ad{display:block;width:100%}
-      .ws-ad-top{max-width:728px;margin:8px auto 0;min-height:90px}
-      .ws-ad-endcard{max-width:300px;margin:12px auto;min-height:250px}
-      @media (max-width:430px){
-        .ws-ad-top{min-height:60px}
-        .ws-ad-endcard{min-height:250px}
-      }
-    `;
-    const style = document.createElement('style');
-    style.setAttribute('data-ws-ads-css','1');
-    style.textContent = css;
-    document.head.appendChild(style);
-  }
-
-  function loadAdSense(clientId){
-    return new Promise((resolve, reject) => {
-      if (document.querySelector('script[data-ws-adsense]')) return resolve();
-      const s = document.createElement('script');
-      s.async = true;
-      s.setAttribute('data-ws-adsense','1');
-      s.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${clientId}`;
-      s.crossOrigin = "anonymous";
-      s.onload = resolve;
-      s.onerror = () => reject(new Error('AdSense failed to load'));
-      document.head.appendChild(s);
-    });
-  }
-
-  function injectResponsiveAd(container){
-    // Safe no-op if ads disabled or not ready
-    if (!ENABLE_ADSENSE || !container) return;
-    if (!window.adsbygoogle) return; // not yet loaded
-    container.innerHTML = '';
-    const ins = document.createElement('ins');
-    ins.className = 'adsbygoogle';
-    ins.style.display = 'block';
-    ins.setAttribute('data-ad-format','auto');
-    ins.setAttribute('data-full-width-responsive','true');
-    // Optional: once you create slots in AdSense UI, wire them:
-    // ins.setAttribute('data-ad-slot','##########');
-    container.appendChild(ins);
-    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch {}
-  }
-
-  async function Wordscend_enableAds(){
-    if (!ENABLE_ADSENSE) return;
-    try {
-      injectAdsCSS();
-      await loadAdSense(ADSENSE_CLIENT_ID);
-      window.adsbygoogle = window.adsbygoogle || [];
-    } catch(e){
-      console.warn('[ads]', e.message);
-    }
-  }
-
-  function Wordscend_mountTopAd(root){
-    if (!ENABLE_ADSENSE) return;
-    try{
-      const topbar = root.querySelector('.ws-topbar');
-      if (!topbar) return;
-      let ad = root.querySelector('.ws-ad-top');
-      if (!ad){
-        ad = document.createElement('div');
-        ad.className = 'ws-ad ws-ad-top';
-        topbar.insertAdjacentElement('afterend', ad);
-      }
-      injectResponsiveAd(ad);
-    }catch{}
-  }
-
-  function Wordscend_patchEndcardForAd(){
-    if (!ENABLE_ADSENSE || !window.WordscendUI || !window.WordscendUI.showEndCard) return;
-    if (window.WordscendUI._adpatched) return;
-    const orig = window.WordscendUI.showEndCard.bind(window.WordscendUI);
-    window.WordscendUI.showEndCard = function(score, cur, best){
-      orig(score, cur, best);
-      try{
-        let host = document.querySelector('.ws-endcard .card');
-        if (!host) return;
-        let ad = host.querySelector('.ws-ad-endcard');
-        if (!ad){
-          ad = document.createElement('div');
-          ad.className = 'ws-ad ws-ad-endcard';
-          // place ad just after button row for good viewability
-          const btnRow = host.querySelector('.row:last-of-type');
-          if (btnRow) btnRow.insertAdjacentElement('afterend', ad);
-          else host.appendChild(ad);
-        }
-        injectResponsiveAd(ad);
-      }catch{}
-    };
-    window.WordscendUI._adpatched = true;
-  }
-
   /* ---------------- Utilities ---------------- */
   function loadScript(src) {
     return new Promise((resolve, reject) => {
@@ -162,10 +57,12 @@
 
   /* ---------------- Config ---------------- */
   const BASE = 'https://innovative-edge-consulting.github.io/web-games';
-  const ALLOWED_URL = 'https://raw.githubusercontent.com/dwyl/english-words/master/words.txt';
+  const ANSWERS_URL = `${BASE}/data/answers.json`;
+  const ALLOWED_URL = `${BASE}/data/allowed.json`; // optional; falls back to answers
   const SCORE_TABLE = [100, 70, 50, 35, 25, 18]; // per-level bonus
   const LEVEL_LENGTHS = [4, 5, 6, 7];
   const STORE_KEY = 'wordscend_v3';
+  const HINT_PENALTY = 10;
 
   function defaultStore() {
     return {
@@ -284,7 +181,7 @@
 
   /* ---------------- Bootstrap ---------------- */
   const root = document.getElementById('game') || document.body;
-  root.innerHTML = '<div style="margin:24px 0;font:600 14px system-ui;color:var(--text);opacity:.85;">Loading word list…</div>';
+  root.innerHTML = '<div style="margin:24px 0;font:600 14px system-ui;color:var(--text);opacity:.85;">Loading…</div>';
 
   const store = applyUrlOverrides(loadStore());
 
@@ -316,43 +213,23 @@
     // load order matters
     await loadAny([`${BASE}/core/engine.js?v=state1`, `/core/engine.js?v=state1`]);
     await loadAny([`${BASE}/ui/dom-view.js?v=state1`, `/ui/dom-view.js?v=state1`]);
-    // If you still serve dictionary.js, keep this next line; if you removed it earlier, delete this line.
-    await loadAny([`${BASE}/core/dictionary.js?v=state1`, `/core/dictionary.js?v=state1`]).catch(()=>{});
+    await loadAny([`${BASE}/core/dictionary.js?v=state1`, `/core/dictionary.js?v=state1`]);
 
-    // If using WordscendDictionary (when dictionary.js is present):
-    let allowedSet = null;
-    if (window.WordscendDictionary && window.WordscendDictionary.loadDWYL){
-      const pack = await window.WordscendDictionary.loadDWYL(ALLOWED_URL, { minLen: 4, maxLen: 7 }).catch(()=>{
-        const fallback = ['TREE','CAMP','WATER','STONE','LIGHT','BRAVE','FAMILY','MARKET','GARDEN','PLANET'];
-        window.WordscendDictionary._allowedSet = new Set(fallback);
-        return { allowedSet: window.WordscendDictionary._allowedSet };
-      });
-      allowedSet = pack && pack.allowedSet ? pack.allowedSet : null;
-    }
+    // Load curated lists (answers + allowed)
+    await window.WordscendDictionary.loadCustom(ANSWERS_URL, ALLOWED_URL, { minLen: 4, maxLen: 7 });
 
     const qp = getParams();
 
     // QA: end card preview
     if (qp.endcard === '1') {
       mountBlankStage();
-      await Wordscend_enableAds();
-      Wordscend_patchEndcardForAd();
-      if (ENABLE_ADSENSE) {
-        const endcardHost = document.querySelector('.ws-endcard .card');
-        if (endcardHost) {
-          let ph = document.createElement('div');
-          ph.className = 'ws-ad ws-ad-endcard';
-          endcardHost.appendChild(ph);
-          injectResponsiveAd(ph);
-        }
-      }
+      window.WordscendUI.showEndCard(store.score, store.streak.current, store.streak.best, {});
       return;
     }
 
     // Start the requested/current level (with restore)
     await startLevel(store.levelIndex);
 
-    // On-demand modals for QA:
     if (qp.intro === '1') window.WordscendUI.showRulesModal();
     if (qp.settings === '1') window.WordscendUI.showSettingsModal();
 
@@ -367,42 +244,36 @@
     async function startLevel(idx){
       const levelLen = LEVEL_LENGTHS[idx];
 
-      // If you have curated answers via WordscendDictionary
-      let curated = null, list = null, answer = 'APPLE'; // default safety
-      if (window.WordscendDictionary){
-        curated = window.WordscendDictionary.answersOfLength(levelLen);
-        list = curated && curated.length
-          ? curated
-          : (allowedSet ? Array.from(allowedSet).filter(w => w.length === levelLen) : []);
-        answer = window.WordscendDictionary.pickToday(list);
-        window.WordscendEngine.setAllowed(window.WordscendDictionary.allowedSet || new Set(list));
-      } else {
-        // Fallback: allow any list you may have wired elsewhere
-        window.WordscendEngine.setAllowed(new Set(list || []));
-      }
+      const curated = window.WordscendDictionary.answersOfLength(levelLen);
+      const list = curated && curated.length ? curated : [];
+      const answer = window.WordscendDictionary.pickToday(list);
 
+      // Initialize engine
+      window.WordscendEngine.setAllowed(window.WordscendDictionary.allowedSet);
       window.WordscendEngine.setAnswer(answer);
-      const cfg = window.WordscendEngine.init({ rows:6, cols: levelLen });
+      window.WordscendEngine.init({ rows:6, cols: levelLen });
 
-      // ---- Restore progress if same day & same level length ----
+      // Restore progress if same day & same level length
       const restorePack = store.progress[levelLen];
       if (restorePack && restorePack.day === store.day && restorePack.state && window.WordscendEngine.hydrate) {
-        try{
-          window.WordscendEngine.hydrate(restorePack.state, { rows:6, cols:levelLen });
-        }catch(e){
-          // If hydrate fails due to mismatch, clear stale
-          clearProgressForLen(levelLen);
-        }
+        try{ window.WordscendEngine.hydrate(restorePack.state, { rows:6, cols:levelLen }); }
+        catch{ clearProgressForLen(levelLen); }
       }
 
       // Mount AFTER potential hydrate so UI renders current state
       window.WordscendUI.mount(root, { rows:6, cols: levelLen });
+
+      // Provide UI with answer meta so it can show hints/defs
+      const meta = window.WordscendDictionary.getMeta(answer);
+      window.WordscendUI.setAnswerMeta?.(answer, meta);
+
       window.WordscendUI.setHUD(`Level ${idx+1}/4`, store.score, store.streak.current);
 
-      // Ads: enable loader once, mount a top banner, and patch endcard
-      await Wordscend_enableAds();
-      Wordscend_mountTopAd(root);
-      Wordscend_patchEndcardForAd();
+      // Hook "Hint" button → deduct points once
+      window.WordscendUI.onHintRequest?.(() => {
+        // Only deduct if not already used (UI protects this; safety double-check)
+        window.WordscendApp_addScore(-HINT_PENALTY);
+      });
 
       const origSubmit = window.WordscendEngine.submitRow.bind(window.WordscendEngine);
       window.WordscendEngine.submitRow = function(){
@@ -413,8 +284,8 @@
           const stInfo = markPlayedToday(store);
           if (stInfo && stInfo.changed){
             window.WordscendUI.setHUD(`Level ${idx+1}/4`, store.score, store.streak.current);
-            if (stInfo.showToast && window.WordscendUI.showStreakToast){
-              window.WordscendUI.showStreakToast(store.streak.current, {
+            if (stInfo.showToast){
+              window.WordscendUI.showStreakToast?.(store.streak.current, {
                 usedFreeze: stInfo.usedFreeze,
                 earnedFreeze: stInfo.earnedFreeze,
                 milestone: stInfo.milestone,
@@ -438,7 +309,7 @@
             saveStore(store);
 
             window.WordscendUI.setHUD(`Level ${idx+1}/4`, store.score, store.streak.current);
-            window.WordscendUI.showBubble?.(`+${gained} pts`);
+            window.WordscendUI.showBubble(`+${gained} pts`);
 
             const isLast = (idx === LEVEL_LENGTHS.length - 1);
             setTimeout(() => {
@@ -446,7 +317,12 @@
               clearProgressForLen(levelLen);
 
               if (isLast) {
-                window.WordscendUI.showEndCard(store.score, store.streak.current, store.streak.best);
+                // pass meta so end-card can offer definition
+                const metaNow = window.WordscendDictionary.getMeta(answer);
+                window.WordscendUI.showEndCard(store.score, store.streak.current, store.streak.best, {
+                  answer, meta: metaNow
+                });
+
                 // Reset score/level for next day’s run (streak persists)
                 store.day = todayKey();
                 store.score = 0;
@@ -461,7 +337,7 @@
 
           } else {
             // Fail: retry same level — clear progress so new grid starts clean
-            window.WordscendUI.showBubble?.('Out of tries. Try again');
+            window.WordscendUI.showBubble('Out of tries. Try again');
             clearProgressForLen(levelLen);
             saveStore(store);
             setTimeout(() => startLevel(idx), 1200);
@@ -476,6 +352,7 @@
       window.WordscendUI.setHUD(`Level ${store.levelIndex+1}/4`, store.score, store.streak.current);
     }
 
+    // Persist on unload as a safety
     window.addEventListener('beforeunload', () => {
       try{ window.WordscendApp_onStateChange && window.WordscendApp_onStateChange(); }catch{}
     });
