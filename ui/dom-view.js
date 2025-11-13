@@ -93,10 +93,10 @@
   AudioFX.armAutoResumeOnce();
 
   function todayKey(){
-    const d=new Date();
-    const y=d.getFullYear();
-    const m=String(d.getMonth()+1).padStart(2,'0');
-    const da=String(d.getDate()).padStart(2,'0');
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const da = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${da}`;
   }
 
@@ -105,8 +105,6 @@
       if (!rootEl) return;
       this.root = rootEl;
       this.config = config || { rows:6, cols:5 };
-      this.answerMeta = null;
-      this._hintCb = null;
 
       Theme.apply(Theme.getPref());
 
@@ -122,15 +120,7 @@
             </div>
             <div class="ws-actions">
               <button class="icon-btn" id="ws-info" type="button" title="How to play" aria-label="How to play">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"></circle>
-                  <path d="M12 8.5h.01M11 11.5h1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
-                </svg>
-              </button>
-              <button class="icon-btn" id="ws-hint" type="button" title="Reveal hint (–10 pts)" aria-label="Reveal hint">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M12 3a7 7 0 0 0-7 7c0 2.6 1.5 4.8 3.7 5.9l-.7 2.6a.8.8 0 0 0 1.1.9l3.3-1.4 3.3 1.4a.8.8 0 0 0 1.1-.9l-.7-2.6A6.9 6.9 0 0 0 19 10a7 7 0 0 0-7-7Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
-                </svg>
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M12 8.5h.01M11 11.5h1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
               </button>
               <button class="icon-btn" id="ws-settings" type="button" title="Settings" aria-label="Settings">
                 <svg viewBox="-1 -1 26 26" fill="none" aria-hidden="true">
@@ -146,6 +136,7 @@
           <div class="ws-tag" id="ws-level">Level: -</div>
           <div class="ws-hud-right">
             <div class="ws-tag" id="ws-score">Score: 0</div>
+            <div class="ws-tag" id="ws-hints" title="Hint bank">💡 Hints 0</div>
             <div class="ws-tag" id="ws-streak" title="Daily play streak">🔥 Streak 0</div>
           </div>
         </div>
@@ -161,41 +152,42 @@
       // Cache refs
       this.levelEl = this.root.querySelector('#ws-level');
       this.scoreEl = this.root.querySelector('#ws-score');
+      this.hintsEl = this.root.querySelector('#ws-hints');
       this.streakEl= this.root.querySelector('#ws-streak');
       this.stageEl = this.root.querySelector('.ws-stage');
       this.gridEl  = this.root.querySelector('.ws-grid');
       this.kbEl    = this.root.querySelector('.ws-kb');
       this.bubble  = this.root.querySelector('#ws-bubble');
-      this.hintBtn = this.root.querySelector('#ws-hint');
 
-      // Hint button state
-      this._syncHintButton();
+      // HUD tooltips
+      this.bindHudTips();
 
       this.renderGrid();
       this.renderKeyboard();
 
       this.bindHeader();
-      this.bindKeyboard();       // once per page
+      this.bindKeyboard();
       this._kbClickBound = false;
-      this.bindKbClicks();       // per mount
+      this.bindKbClicks();
     },
 
-    setHUD(levelText, score, streak){
+    setHUD(levelText, score, streak, hintsAvail){
       if (this.levelEl)  this.levelEl.textContent  = levelText;
       if (this.scoreEl)  this.scoreEl.textContent  = `Score: ${score}`;
+      if (this.hintsEl)  this.hintsEl.textContent  = `💡 Hints ${hintsAvail ?? 0}`;
       if (this.streakEl) this.streakEl.textContent = `🔥 Streak ${streak ?? 0}`;
     },
 
-    // Provide answer meta (hint/def) from app
-    setAnswerMeta(answer, meta){
-      this.answerWord = (answer || '').toUpperCase();
-      this.answerMeta = meta || null;
-      this._syncHintButton();
-    },
+    bindHudTips(){
+      this.streakEl?.addEventListener('click', () => {
+        const msg = 'Keep your streak by playing every day. You can also earn a freeze at day 7 of a month (auto-used on a 1-day gap).';
+        this.showAnchoredTip(this.streakEl, `Streak info`, msg);
+      }, { passive:true });
 
-    // App can register a callback that will be invoked to deduct points
-    onHintRequest(cb){
-      this._hintCb = typeof cb === 'function' ? cb : null;
+      this.hintsEl?.addEventListener('click', () => {
+        const msg = 'Earn 1 hint every 5-day streak milestone. Hints are banked, but you can use at most 1 per level each day.';
+        this.showAnchoredTip(this.hintsEl, `Hint bank`, msg);
+      }, { passive:true });
     },
 
     /* ---------- Header ---------- */
@@ -204,22 +196,6 @@
       const settings = this.root.querySelector('#ws-settings');
       info?.addEventListener('click', ()=> this.showRulesModal(), { passive:true });
       settings?.addEventListener('click', ()=> this.showSettingsModal(), { passive:true });
-
-      // Hint handler (confirm first; allow once per day per level length)
-      this.hintBtn?.addEventListener('click', () => {
-        if (!this._hintAvailable()) return;
-
-        this.confirmHint().then((ok) => {
-          if (!ok) return;
-
-          const hint = (this.answerMeta && this.answerMeta.hint) ? String(this.answerMeta.hint) : 'No hint available';
-          this.showStreakToast(null, { hintText: hint });
-
-          this._markHintUsed();
-
-          try { this._hintCb && this._hintCb(); } catch {}
-        });
-      }, { passive:true });
     },
 
     /* ---------- Rendering ---------- */
@@ -377,6 +353,100 @@
       }
     },
 
+    /* ---------- Hint UX ---------- */
+    _answerMeta: null,
+    setAnswerMeta(answer, meta){
+      this._answerMeta = { answer, meta };
+      if (!this._hintBtn){
+        const btn = document.createElement('button');
+        btn.className = 'ws-btn';
+        btn.textContent = 'Show Hint';
+        btn.style.marginTop = '6px';
+        btn.addEventListener('click', () => this.requestHintFlow(), { passive:true });
+        this.stageEl?.prepend(btn);
+        this._hintBtn = btn;
+      }
+    },
+    onHintCheck: null,
+    onHintConsume: null,
+
+    requestHintFlow(){
+      const canUse = (typeof this.onHintCheck === 'function') ? !!this.onHintCheck() : false;
+      if (!canUse){
+        this.showBubble('No hint available for this level');
+        return;
+      }
+      this.showConfirm('Reveal a hint?', 'You will lose 10 points to reveal a hint. Continue?', (ok) => {
+        if (!ok) return;
+        try {
+          if (typeof this.onHintConsume === 'function') this.onHintConsume();
+        } catch {}
+        const meta = this._answerMeta?.meta || {};
+        const hintText = (meta && meta.hint) ? String(meta.hint) : 'No hint available for this word.';
+        this.showHintToast(hintText);
+      });
+    },
+
+    showHintToast(text){
+      document.querySelector('.ws-streak-toast')?.remove();
+      const t = document.createElement('div');
+      t.className = 'ws-streak-toast show';
+      t.innerHTML = `<strong>Hint</strong><span class="sub">${text}</span>`;
+      const row = document.createElement('div');
+      row.style.marginTop = '8px';
+      row.className = 'row';
+      const close = document.createElement('button');
+      close.className = 'ws-btn';
+      close.textContent = 'Close';
+      close.addEventListener('click', () => t.remove(), { passive:true });
+      row.appendChild(close);
+      t.appendChild(row);
+      document.body.appendChild(t);
+    },
+
+    showConfirm(title, message, cb){
+      document.querySelector('.ws-modal')?.remove();
+      const wrap = document.createElement('div');
+      wrap.className = 'ws-modal';
+      wrap.innerHTML = `
+        <div class="card" role="dialog" aria-label="${title}">
+          <h3>${title}</h3>
+          <p>${message}</p>
+          <div class="row">
+            <button class="ws-btn primary" data-action="ok">Yes</button>
+            <button class="ws-btn" data-action="cancel">Cancel</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(wrap);
+      const handler = (e) => {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) { if (e.target === wrap) { cb && cb(false); wrap.remove(); } return; }
+        const act = btn.dataset.action;
+        if (act === 'ok'){ cb && cb(true); wrap.remove(); }
+        if (act === 'cancel'){ cb && cb(false); wrap.remove(); }
+      };
+      wrap.addEventListener('click', handler, { passive:true });
+      window.addEventListener('keydown', (e)=>{ if (e.key==='Escape'){ cb && cb(false); wrap.remove(); }}, { once:true });
+    },
+
+    showAnchoredTip(anchorEl, title, text){
+      document.querySelector('.ws-streak-tip')?.remove();
+      if (!anchorEl) return;
+      const r = anchorEl.getBoundingClientRect();
+      const tip = document.createElement('div');
+      tip.className = 'ws-streak-tip';
+      tip.innerHTML = `<strong>${title}</strong><div class="sub" style="margin-top:6px;">${text}</div>`;
+      tip.style.position = 'fixed';
+      tip.style.left = `${r.left}px`;
+      tip.style.top  = `${r.bottom + 8}px`;
+      document.body.appendChild(tip);
+      requestAnimationFrame(()=> tip.classList.add('show'));
+      const close = () => { tip.remove(); window.removeEventListener('click', away, true); };
+      const away = (e) => { if (!tip.contains(e.target)) close(); };
+      window.addEventListener('click', away, true);
+    },
+
     /* ---------- Animations & Helpers ---------- */
     flipRevealRow(rowIndex, marks) {
       const rows = this.gridEl.querySelectorAll('.ws-row');
@@ -426,7 +496,6 @@
       this._bT = setTimeout(() => this.bubble.classList.remove('show'), 1400);
     },
 
-    /* Floating points chip */
     floatPointsFromTile(tileEl, delta, color='green'){
       try{
         const scoreEl = this.scoreEl;
@@ -455,7 +524,7 @@
           setTimeout(()=>{
             chip.style.left = `${sRect.left + sRect.width/2}px`;
             chip.style.top  = `${sRect.top  + sRect.height/2}px`;
-            chip.style.transform = 'translate(-50%, -50%) scale(0.8)'; /* <-- fixed closing quote */
+            chip.style.transform = 'translate(-50%, -50%) scale(0.8)';
             chip.style.opacity = '0.0';
           }, 160);
         });
@@ -514,153 +583,38 @@
       window.addEventListener('keydown', (e)=>{ if (e.key==='Escape'){ wrap.remove(); }}, { once:true });
     },
 
-    /* ---------- Streak toast / Hint toast ---------- */
-    showStreakToast(streak, opts){
-      // If it's a hint, show a persistent toast with a Close button.
-      if (typeof opts?.hintText === 'string') {
-        // Remove any existing hint toast (but leave regular streak ones alone)
-        const oldHint = document.querySelector('.ws-streak-toast.ws-hint');
-        if (oldHint) oldHint.remove();
-
-        const wrap = document.createElement('div');
-        wrap.className = 'ws-streak-toast ws-hint';
-        // Simple, safe HTML (no backticks)
-        wrap.innerHTML =
-          '<div style="display:flex;align-items:flex-start;gap:10px;max-width:520px;">' +
-            '<div style="flex:1 1 auto;">' +
-              '<strong>Hint</strong>' +
-              '<span class="sub">' + String(opts.hintText) + '</span>' +
-            '</div>' +
-            '<button class="ws-btn" data-action="close" style="white-space:nowrap;">Close</button>' +
-          '</div>';
-
-        document.body.appendChild(wrap);
-        requestAnimationFrame(function(){ wrap.classList.add('show'); });
-
-        // Close handlers
-        const close = function(){ 
-          wrap.classList.remove('show'); 
-          setTimeout(function(){ wrap.remove(); }, 220); 
-        };
-        wrap.addEventListener('click', function(e){
-          const btn = e.target.closest('button[data-action="close"]');
-          if (btn) close();
-        }, { passive: true });
-        window.addEventListener('keydown', function onEsc(e){
-          if (e.key === 'Escape'){ 
-            window.removeEventListener('keydown', onEsc, { once:true });
-            close(); 
-          }
-        }, { once:true });
-
-        return;
-      }
-
-      // Regular streak toast (auto-hide like before)
-      document.querySelector('.ws-streak-toast:not(.ws-hint)')?.remove();
-      const wrap = document.createElement('div');
-      wrap.className = 'ws-streak-toast';
-
-      var main = '🔥 Streak ' + String(streak ?? 0);
-      var notes = [];
-      if (opts?.usedFreeze) notes.push('Used 1 freeze');
-      if (opts?.earnedFreeze) notes.push('+1 freeze earned');
-      if (opts?.milestone) notes.push('Milestone ' + String(opts.milestone) + '!');
-      if (opts?.newBest) notes.push('New best!');
-      if (Number.isFinite(opts?.freezesAvail)) notes.push('Freezes: ' + String(opts.freezesAvail));
-      var sub = notes.join(' • ');
-
-      wrap.innerHTML = '<div><strong>' + main + '</strong>' + (sub ? '<span class="sub">' + sub + '</span>' : '') + '</div>';
-      document.body.appendChild(wrap);
-
-      requestAnimationFrame(function(){ wrap.classList.add('show'); });
-      setTimeout(function(){
-        wrap.classList.remove('show');
-        setTimeout(function(){ wrap.remove(); }, 220);
-      }, 2600);
-    },
-
-    /* ---------- Hint confirm modal ---------- */
-    confirmHint(){
-      return new Promise((resolve) => {
-        // remove any existing confirm
-        document.querySelector('.ws-modal')?.remove();
-
-        const wrap = document.createElement('div');
-        wrap.className = 'ws-modal';
-        wrap.innerHTML =
-          '<div class="card" role="dialog" aria-label="Reveal hint confirmation">' +
-            '<h3>Reveal Hint?</h3>' +
-            '<p>Revealing a hint will deduct <strong>10 points</strong> from your score.</p>' +
-            '<div class="row">' +
-              '<button class="ws-btn primary" data-action="ok">Reveal (–10 pts)</button>' +
-              '<button class="ws-btn" data-action="cancel">Cancel</button>' +
-            '</div>' +
-          '</div>';
-        document.body.appendChild(wrap);
-
-        const done = (val) => { wrap.remove(); resolve(val); };
-        wrap.addEventListener('click', (e)=>{
-          const b = e.target.closest('button[data-action]');
-          if (!b) { if (e.target === wrap) done(false); return; }
-          if (b.dataset.action === 'ok') done(true);
-          if (b.dataset.action === 'cancel') done(false);
-        }, { passive:true });
-        window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') done(false); }, { once:true });
-      });
-    },
-
-    /* ---------- Hint persistence helpers ---------- */
-    _hintKey(){
-      const len = this.config?.cols || 5;
-      return `ws_hint_used_${todayKey()}_${len}`;
-    },
-    _hintAvailable(){
-      try { return !localStorage.getItem(this._hintKey()); } catch { return true; }
-    },
-    _markHintUsed(){
-      try { localStorage.setItem(this._hintKey(), '1'); } catch {}
-      this._syncHintButton();
-    },
-    _syncHintButton(){
-      if (!this.hintBtn) return;
-      const disabled = !this._hintAvailable() || !this.answerMeta || !this.answerMeta.hint;
-      this.hintBtn.disabled = !!disabled;
-      this.hintBtn.title = disabled ? 'Hint unavailable' : 'Reveal hint (–10 pts)';
-      this.hintBtn.setAttribute('aria-disabled', String(!!disabled));
-    },
-
     /* ---------- Modals ---------- */
     showRulesModal() {
       document.querySelector('.ws-modal')?.remove();
       const wrap = document.createElement('div');
       wrap.className = 'ws-modal';
 
-      // Real single game row example (tight like the board)
-      const exampleRowHTML =
-        '<div class="ws-row" style="display:grid;grid-template-columns:repeat(5,var(--tileSize));gap:8px;margin-top:8px;">' +
-          '<div class="ws-tile filled state-correct">P</div>' +
-          '<div class="ws-tile filled state-present">L</div>' +
-          '<div class="ws-tile filled state-absent">A</div>' +
-          '<div class="ws-tile filled state-absent">N</div>' +
-          '<div class="ws-tile filled state-present">T</div>' +
-        '</div>';
+      const exampleRowHTML = `
+        <div class="ws-row" style="display:grid;grid-template-columns:repeat(5,var(--tileSize));gap:8px;margin-top:8px;">
+          <div class="ws-tile filled state-correct">P</div>
+          <div class="ws-tile filled state-present">L</div>
+          <div class="ws-tile filled state-absent">A</div>
+          <div class="ws-tile filled state-absent">N</div>
+          <div class="ws-tile filled state-present">T</div>
+        </div>
+      `;
 
-      wrap.innerHTML =
-        '<div class="card" role="dialog" aria-label="How to play Wordscend">' +
-          '<h3>How to Play 🧩</h3>' +
-          '<p>Climb through <strong>4 levels</strong> of daily word puzzles — from 4-letter to 7-letter words. You have <strong>6 tries</strong> per level.</p>' +
-          '<ul style="margin:6px 0 0 18px; color:var(--muted); line-height:1.5;">' +
-            '<li>Type or tap to guess a word of the current length.</li>' +
-            '<li>Tiles turn <strong>green</strong> (correct spot) or <strong>yellow</strong> (in word, wrong spot).</li>' +
-            '<li>Beat a level to advance to the next length.</li>' +
-            '<li>Keep your <strong>🔥 streak</strong> by playing each day.</li>' +
-          '</ul>' +
-          exampleRowHTML +
-          '<div class="row" style="margin-top:10px;">' +
-            '<button class="ws-btn primary" data-action="close">Got it</button>' +
-          '</div>' +
-        '</div>';
+      wrap.innerHTML = `
+        <div class="card" role="dialog" aria-label="How to play Wordscend">
+          <h3>How to Play 🧩</h3>
+          <p>Climb through <strong>4 levels</strong> of daily word puzzles — from 4-letter to 7-letter words. You have <strong>6 tries</strong> per level.</p>
+          <ul style="margin:6px 0 0 18px; color:var(--muted); line-height:1.5;">
+            <li>Type or tap to guess a word of the current length.</li>
+            <li>Tiles turn <strong>green</strong> (correct spot) or <strong>yellow</strong> (in word, wrong spot).</li>
+            <li>Beat a level to advance to the next length.</li>
+            <li>Keep your <strong>🔥 streak</strong> by playing each day.</li>
+          </ul>
+          ${exampleRowHTML}
+          <div class="row" style="margin-top:10px;">
+            <button class="ws-btn primary" data-action="close">Got it</button>
+          </div>
+        </div>
+      `;
 
       document.body.appendChild(wrap);
       wrap.addEventListener('click', (e)=>{
@@ -678,32 +632,33 @@
       const colorblind = localStorage.getItem('ws_colorblind') === '1';
       const themePref = (localStorage.getItem('ws_theme') || 'dark');
 
-      wrap.innerHTML =
-        '<div class="card" role="dialog" aria-label="Settings">' +
-          '<h3>Settings ⚙️</h3>' +
-          '<div class="ws-form">' +
-            '<div class="ws-field">' +
-              '<label for="ws-theme">Theme</label>' +
-              '<select id="ws-theme">' +
-                `<option value="dark"  ${themePref==='dark'?'selected':''}>Dark</option>` +
-                `<option value="light" ${themePref==='light'?'selected':''}>Light</option>` +
-                `<option value="auto"  ${themePref==='auto'?'selected':''}>Auto (system)</option>` +
-              '</select>' +
-            '</div>' +
-            '<div class="ws-field">' +
-              '<label for="ws-sound">Sound effects</label>' +
-              `<input id="ws-sound" type="checkbox" ${sound?'checked':''}/>` +
-            '</div>' +
-            '<div class="ws-field">' +
-              '<label for="ws-cb">Colorblind hints</label>' +
-              `<input id="ws-cb" type="checkbox" ${colorblind?'checked':''}/>` +
-            '</div>' +
-          '</div>' +
-          '<div class="row">' +
-            '<button class="ws-btn primary" data-action="save">Save</button>' +
-            '<button class="ws-btn" data-action="close">Close</button>' +
-          '</div>' +
-        '</div>';
+      wrap.innerHTML = `
+        <div class="card" role="dialog" aria-label="Settings">
+          <h3>Settings ⚙️</h3>
+          <div class="ws-form">
+            <div class="ws-field">
+              <label for="ws-theme">Theme</label>
+              <select id="ws-theme">
+                <option value="dark"  ${themePref==='dark'?'selected':''}>Dark</option>
+                <option value="light" ${themePref==='light'?'selected':''}>Light</option>
+                <option value="auto"  ${themePref==='auto'?'selected':''}>Auto (system)</option>
+              </select>
+            </div>
+            <div class="ws-field">
+              <label for="ws-sound">Sound effects</label>
+              <input id="ws-sound" type="checkbox" ${sound?'checked':''}/>
+            </div>
+            <div class="ws-field">
+              <label for="ws-cb">Colorblind hints</label>
+              <input id="ws-cb" type="checkbox" ${colorblind?'checked':''}/>
+            </div>
+          </div>
+          <div class="row">
+            <button class="ws-btn primary" data-action="save">Save</button>
+            <button class="ws-btn" data-action="close">Close</button>
+          </div>
+        </div>
+      `;
       document.body.appendChild(wrap);
 
       wrap.addEventListener('click', (e)=>{
