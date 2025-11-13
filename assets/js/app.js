@@ -56,7 +56,7 @@
   }
 
   /* ---------------- Config ---------------- */
-  const BASE = 'https://innovative-edge-consulting.github.io/web-games';
+  const BASE = 'https://innovative-edge-consulting.github.io/wordhive';
   const ANSWERS_URL = `${BASE}/data/answers.json`;
   const ALLOWED_URL = `${BASE}/data/allowed.json`; // optional; falls back to answers
   const SCORE_TABLE = [100, 70, 50, 35, 25, 18]; // per-level bonus
@@ -235,10 +235,32 @@
   };
 
   (async () => {
-    // load order matters
-    await loadAny([`${BASE}/core/engine.js?v=state1`, `/core/engine.js?v=state1`]);
-    await loadAny([`${BASE}/ui/dom-view.js?v=state1`, `/ui/dom-view.js?v=state1`]);
-    await loadAny([`${BASE}/core/dictionary.js?v=state1`, `/core/dictionary.js?v=state1`]);
+    // --- keep BASE as the wordhive repo ---
+
+    // Helpers to build robust relative fallbacks
+    function here(path) {
+      const base = location.pathname.replace(/\/[^/]*$/, '/'); // directory of current page
+      return base + path.replace(/^\//,'');
+    }
+
+    // Load order matters — try repo URL first, then relative-to-page
+    await loadAny([
+      `${BASE}/core/engine.js?v=state1`,
+      `core/engine.js?v=state1`,
+      here('core/engine.js?v=state1')
+    ]);
+
+    await loadAny([
+      `${BASE}/ui/dom-view.js?v=state1`,
+      `ui/dom-view.js?v=state1`,
+      here('ui/dom-view.js?v=state1')
+    ]);
+
+    await loadAny([
+      `${BASE}/core/dictionary.js?v=state1`,
+      `core/dictionary.js?v=state1`,
+      here('core/dictionary.js?v=state1')
+    ]);
 
     // Load curated lists (answers + allowed)
     await window.WordscendDictionary.loadCustom(ANSWERS_URL, ALLOWED_URL, { minLen: 4, maxLen: 7 });
