@@ -106,13 +106,16 @@ body{
   padding:8px 10px; border:1px solid var(--border); border-radius:10px; background:var(--card); color:var(--text);
   display:flex; align-items:center; gap:6px;
 }
-.ws-hud-right{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.ws-hud-right{ display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
 
 @keyframes ws-pulse{ 0%{transform:scale(1)} 40%{transform:scale(1.07)} 100%{transform:scale(1)} }
 .ws-tag.pulse{ animation: ws-pulse 260ms ease; }
 
 /* ===================== STAGE ===================== */
-.ws-stage{ width:100%; max-width:560px; position:relative; display:flex; flex-direction:column; align-items:center; gap:12px; }
+.ws-stage{
+  width:100%; max-width:560px; position:relative;
+  display:flex; flex-direction:column; align-items:center; gap:12px;
+}
 
 /* ===================== GRID ===================== */
 .ws-grid{ display:grid; gap:8px; justify-items:center; }
@@ -144,22 +147,22 @@ body{
 
 /* ===================== KEYBOARD ===================== */
 .ws-kb{
-  margin-top:12px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
+  margin-top:8px;
+  display:grid;
   gap:8px;
   width:100%;
-  max-width:560px;
-  padding:0 8px;
-  box-sizing:border-box;
+  padding:0 12px;
   -webkit-tap-highlight-color: transparent;
+  max-width:min(560px, calc(var(--tileSize) * var(--ws-cols, 5) + 8px * (var(--ws-cols, 5) - 1) + 48px));
+  margin-left:auto;
+  margin-right:auto;
+  justify-items:center; /* ensure centering under grid */
 }
 .ws-kb-row{
-  display:flex;
+  display:grid;
+  grid-auto-flow:column;
   justify-content:center;
   gap:6px;
-  width:100%;
 }
 .ws-kb-key{
   font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
@@ -194,10 +197,12 @@ body{
   border-radius:12px; padding:10px 14px; font:700 14px/1.25 system-ui;
   box-shadow:var(--bubbleShadow); z-index:55; opacity:0; pointer-events:none;
   transition:opacity .2s ease, transform .2s ease;
-  max-width:min(420px, calc(100vw - 32px));
-  box-sizing:border-box;
 }
-.ws-streak-toast.show{ opacity:1; transform:translate(-50%,0); pointer-events:auto; }
+.ws-streak-toast.show{
+  opacity:1;
+  transform:translate(-50%,0);
+  pointer-events:auto; /* FIX: allow clicks on Close button */
+}
 .ws-streak-toast .sub{ display:block; font:600 12px/1.2 system-ui; color:var(--muted); margin-top:4px; }
 
 /* Anchored streak tooltip */
@@ -217,7 +222,8 @@ body{
   position:fixed; inset:0; background:rgba(0,0,0,.6);
   display:flex; align-items:center; justify-content:center; z-index:50;
 }
-:root[data-theme="light"] .ws-modal, :root[data-theme="light"] .ws-endcard{ background:rgba(8,10,12,.35); }
+:root[data-theme="light"] .ws-modal,
+:root[data-theme="light"] .ws-endcard{ background:rgba(8,10,12,.35); }
 .ws-modal .card, .ws-endcard .card{
   width:min(92vw,560px); background:var(--card); border:1px solid var(--border);
   border-radius:16px; padding:20px; box-shadow:var(--shadow);
@@ -258,7 +264,7 @@ body{
   position:fixed; z-index:60; pointer-events:none; font:800 14px/1 system-ui;
   padding:6px 8px; border-radius:999px; background:var(--card); border:1px solid var(--border);
   color:var(--text); box-shadow:0 8px 20px rgba(0,0,0,.45);
-  transition: transform 420ms cubic-bezier(.22,.82,.25,1), opacity 420ms ease, left 420ms ease, top 420ms ease;
+  transition: transform 420ms cubic-bezier(.22,.82,.25,1), opacity 420ms.ease, left 420ms ease, top 420ms ease;
   opacity:.98;
 }
 :root[data-theme="light"] .ws-fxfloat{ box-shadow:0 8px 16px rgba(0,0,0,.12); }
@@ -284,23 +290,29 @@ body{
   }
 
   .ws-kb{
-    padding:0 4px;
-    gap:8px;
-    align-items:center;
+    padding:0 8px;
+    gap:10px;
+    justify-items:center;
   }
 
   .ws-kb-row{
     gap:6px;
-    width:100%;
+    width:auto;
+    grid-auto-flow:column;
     justify-content:center;
-    flex-wrap:wrap;
+    justify-items:center;
   }
+  .ws-kb-row:nth-child(1){ grid-template-columns: repeat(10, auto); }
+  .ws-kb-row:nth-child(2){ grid-template-columns: repeat(9,  auto); }
+  .ws-kb-row:nth-child(3){ grid-template-columns: repeat(11, auto); }
 
   .ws-kb-key{
     justify-self:center; min-width:auto; min-height:clamp(40px, 9.8vw, 50px);
     padding:clamp(10px, 2.4vw, 14px) clamp(8px, 2.6vw, 12px);
     font-size:clamp(13px, 3.6vw, 16px); border-radius:10px;
   }
+  .ws-kb-enter, .ws-kb-back{ grid-column:span 2; padding:clamp(10px, 2.4vw, 14px) clamp(10px, 3.2vw, 16px); }
+
   .ws-modal .card, .ws-endcard .card { padding:16px; }
 }
 
