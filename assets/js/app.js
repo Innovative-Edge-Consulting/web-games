@@ -58,8 +58,8 @@
   /* ---------------- Config ---------------- */
   const BASE = 'https://innovative-edge-consulting.github.io/wordhive';
   const ANSWERS_URL = `${BASE}/data/answers.json`;
-  // Use a large public word list (one word per line) to validate guesses
-  const ALLOWED_URL = 'https://raw.githubusercontent.com/jeremy-rifkin/Wordlist/master/wordlist.txt';
+  // Local allowed-word list (one word per line) hosted in this repo
+  const ALLOWED_URL = `${BASE}/data/allowed.txt?v=1`;
   const SCORE_TABLE = [100, 70, 50, 35, 25, 18]; // per-level bonus
   const LEVEL_LENGTHS = [4, 5, 6, 7];
   const STORE_KEY = 'wordscend_v3';
