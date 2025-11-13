@@ -92,14 +92,6 @@
   };
   AudioFX.armAutoResumeOnce();
 
-  function todayKey(){
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const da = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${da}`;
-  }
-
   const UI = {
     mount(rootEl, config) {
       if (!rootEl) return;
@@ -189,12 +181,12 @@
     bindHudTips(){
       this.streakEl?.addEventListener('click', () => {
         const msg = 'Keep your streak by playing every day. You can also earn a freeze at day 7 of a month (auto-used on a 1-day gap).';
-        this.showAnchoredTip(this.streakEl, `Streak info`, msg);
+        this.showAnchoredTip(this.streakEl, 'Streak info', msg);
       }, { passive:true });
 
       this.hintsEl?.addEventListener('click', () => {
         const msg = 'Earn 1 hint every 5-day streak milestone. Hints are banked, but you can use at most 1 per level each day.';
-        this.showAnchoredTip(this.hintsEl, `Hint bank`, msg);
+        this.showAnchoredTip(this.hintsEl, 'Hint bank', msg);
       }, { passive:true });
     },
 
@@ -520,7 +512,7 @@
         const sRect = scoreEl.getBoundingClientRect();
 
         const chip = document.createElement('div');
-        chip.className = `ws-fxfloat ${color==='green'?'green':'yellow'}`;
+        chip.className = `ws-fxfloat ${color==='green' ? 'green' : 'yellow'}`;
         chip.textContent = (delta > 0 ? `+${delta}` : `${delta}`);
         chip.style.left = `${tRect.left + tRect.width/2}px`;
         chip.style.top  = `${tRect.top  + tRect.height/2}px`;
@@ -534,12 +526,12 @@
           chip.style.transitionTimingFunction = 'cubic-bezier(.22,.82,.25,1)';
           chip.style.left = `${midX}px`;
           chip.style.top  = `${midY}px`;
-          chip.style.transform = 'translate(-50%, -50%) scale(1.05)`;
+          chip.style.transform = 'translate(-50%, -50%) scale(1.05)';
 
           setTimeout(()=>{
             chip.style.left = `${sRect.left + sRect.width/2}px`;
             chip.style.top  = `${sRect.top  + sRect.height/2}px`;
-            chip.style.transform = 'translate(-50%, -50%) scale(0.8)`;
+            chip.style.transform = 'translate(-50%, -50%) scale(0.8)';
             chip.style.opacity = '0.0';
           }, 160);
         });
