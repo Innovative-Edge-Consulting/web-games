@@ -2,6 +2,10 @@
 /* Default: dark (can be overridden by [data-theme] on <html>) */
 :root{
   --brand:#497f64;
+  --ws-cols: 5;
+  --ws-stage-max: 560px;
+  --ws-grid-max: calc(var(--tileSize) * var(--ws-cols, 5) + 8px * (var(--ws-cols, 5) - 1));
+  --ws-board-max: min(var(--ws-stage-max), var(--ws-grid-max));
 
   /* Dark */
   --bg:#0d0f10;
@@ -103,6 +107,7 @@ body{
 .ws-hud .ws-tag{
   font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
   padding:8px 10px; border:1px solid var(--border); border-radius:10px; background:var(--card); color:var(--text);
+  display:flex; align-items:center; gap:6px;
 }
 .ws-hud-right{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 
@@ -110,7 +115,15 @@ body{
 .ws-tag.pulse{ animation: ws-pulse 260ms ease; }
 
 /* ===================== STAGE ===================== */
-.ws-stage{ width:100%; max-width:560px; position:relative; display:flex; flex-direction:column; align-items:center; gap:12px; }
+.ws-stage{
+  width:min(100%, var(--ws-grid-width, var(--ws-board-max)));
+  max-width:var(--ws-grid-width, var(--ws-grid-max));
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:12px;
+}
 
 /* ===================== GRID ===================== */
 .ws-grid{ display:grid; gap:8px; justify-items:center; }
@@ -142,11 +155,19 @@ body{
 
 /* ===================== KEYBOARD ===================== */
 .ws-kb{
-  margin-top:8px; display:grid; gap:8px; width:100%; padding:0 12px;
+  margin-top:8px;
+  display:grid;
+  gap:8px;
+  width:min(100%, var(--ws-grid-width, var(--ws-board-max)));
+  padding:0 clamp(6px, 2vw, 16px);
+  box-sizing:border-box;
   -webkit-tap-highlight-color: transparent;
-  max-width:560px; margin-left:auto; margin-right:auto;
+  max-width:var(--ws-grid-width, var(--ws-board-max));
+  margin-left:auto;
+  margin-right:auto;
+  justify-items:center;
 }
-.ws-kb-row{ display:grid; grid-auto-flow:column; justify-content:center; gap:6px; }
+.ws-kb-row{ display:grid; grid-auto-flow:column; justify-content:center; gap:6px; width:100%; }
 .ws-kb-key{
   font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
   padding:12px 10px; min-width:34px; border-radius:8px;
@@ -253,15 +274,39 @@ body{
 @media (max-width:430px){
   :root{ --tileSize: clamp(36px, 10.5vw, 48px); }
 
-  .ws-kb{ padding:0 8px; gap:8px; max-width:560px; margin-left:auto; margin-right:auto; }
+  .ws-hud{
+    flex-direction:column;
+    align-items:stretch;
+    gap:10px;
+  }
+  .ws-hud #ws-level{ width:100%; }
+  .ws-hud .ws-tag{ justify-content:center; text-align:center; width:100%; }
+  .ws-hud-right{
+    width:100%;
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
+    gap:6px;
+  }
 
-  .ws-kb-row{ gap:6px; width:100%; grid-auto-flow:row; justify-content:center; justify-items:stretch; }
-  .ws-kb-row:nth-child(1){ grid-template-columns: repeat(10, 1fr); }
-  .ws-kb-row:nth-child(2){ grid-template-columns: repeat(9,  1fr); }
-  .ws-kb-row:nth-child(3){ grid-template-columns: repeat(11, 1fr); }
+  .ws-kb{
+    padding:0 8px;
+    gap:10px;
+    justify-items:center;
+  }
+
+  .ws-kb-row{
+    gap:6px;
+    width:auto;
+    grid-auto-flow:column;
+    justify-content:center;
+    justify-items:center;
+  }
+  .ws-kb-row:nth-child(1){ grid-template-columns: repeat(10, auto); }
+  .ws-kb-row:nth-child(2){ grid-template-columns: repeat(9,  auto); }
+  .ws-kb-row:nth-child(3){ grid-template-columns: repeat(11, auto); }
 
   .ws-kb-key{
-    justify-self:stretch; min-width:auto; min-height:clamp(40px, 9.8vw, 50px);
+    justify-self:center; min-width:auto; min-height:clamp(40px, 9.8vw, 50px);
     padding:clamp(10px, 2.4vw, 14px) clamp(8px, 2.6vw, 12px);
     font-size:clamp(13px, 3.6vw, 16px); border-radius:10px;
   }

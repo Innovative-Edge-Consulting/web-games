@@ -106,6 +106,14 @@
       this.root = rootEl;
       this.config = config || { rows:6, cols:5 };
 
+      const colCount = Number(this.config?.cols) || 5;
+      try {
+        document.documentElement.style.setProperty('--ws-cols', colCount);
+      } catch {}
+      try {
+        this.root.style.setProperty('--ws-cols', colCount);
+      } catch {}
+
       Theme.apply(Theme.getPref());
 
       if (!document.querySelector('.ws-page-bg')){
@@ -169,6 +177,7 @@
       this.bindKeyboard();
       this._kbClickBound = false;
       this.bindKbClicks();
+      this.initBoardWidthWatcher();
     },
 
     setHUD(levelText, score, streak, hintsAvail){
@@ -234,6 +243,8 @@
         if (r < cursor.row) rowEl.classList.add('ws-locked');
         this.gridEl.appendChild(rowEl);
       }
+
+      this.scheduleBoardWidthSync();
     },
 
     renderKeyboard() {
@@ -307,6 +318,37 @@
         e.stopPropagation();
         this.handleInput(btn.dataset.key);
       }, { passive: false });
+    },
+
+    initBoardWidthWatcher(){
+      this.scheduleBoardWidthSync();
+
+      if (window.ResizeObserver && this.gridEl) {
+        if (this._gridObserver) {
+          this._gridObserver.disconnect();
+        }
+        this._gridObserver = new ResizeObserver(() => this.scheduleBoardWidthSync());
+        this._gridObserver.observe(this.gridEl);
+        return;
+      }
+
+      if (!this._boardResizeBound) {
+        this._boardResizeBound = true;
+        this._boardResizeHandler = () => this.scheduleBoardWidthSync();
+        window.addEventListener('resize', this._boardResizeHandler, { passive:true });
+      }
+    },
+
+    scheduleBoardWidthSync(){
+      if (!this.gridEl || !this.root) return;
+      if (this._boardWidthRaf) cancelAnimationFrame(this._boardWidthRaf);
+      this._boardWidthRaf = requestAnimationFrame(() => {
+        if (!this.gridEl || !this.root) return;
+        const width = this.gridEl.offsetWidth;
+        if (width > 0) {
+          this.root.style.setProperty('--ws-grid-width', `${width}px`);
+        }
+      });
     },
 
     handleInput(key) {
