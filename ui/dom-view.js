@@ -116,7 +116,7 @@
         <div class="ws-topbar">
           <div class="ws-topbar-inner">
             <div class="ws-brand" role="banner" aria-label="WordHive">
-              <img src="wordhive-logo.png" alt="WordHive" class="ws-logo" />
+              <img src="assets/wordhive-logo.png" alt="WordHive logo" class="ws-logo" />
             </div>
             <div class="ws-actions">
               <button class="icon-btn" id="ws-info" type="button" title="How to play" aria-label="How to play">
