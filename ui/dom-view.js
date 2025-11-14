@@ -109,19 +109,18 @@
       Theme.apply(Theme.getPref());
 
       if (!document.querySelector('.ws-page-bg')){
-        const bg = document.createElement('div');
-        bg.className = 'ws-page-bg';
-        document.body.appendChild(bg);
+        const bg = document.createElement('div'); bg.className='ws-page-bg'; document.body.appendChild(bg);
       }
 
       this.root.innerHTML = `
         <div class="ws-topbar">
           <div class="ws-topbar-inner">
             <div class="ws-brand" role="banner" aria-label="WordHive">
-              <span class="ws-brand-block ws-brand-block-w">W</span>
-              <span class="ws-brand-text">ord</span>
-              <span class="ws-brand-block ws-brand-block-h">H</span>
-              <span class="ws-brand-text">ive</span>
+              <span class="ws-logo-word">
+                <span class="ws-logo-tile ws-logo-tile-w">W</span>
+                <span class="ws-logo-tile ws-logo-tile-h">H</span>
+                <span class="ws-logo-rest">ordHive</span>
+              </span>
             </div>
             <div class="ws-actions">
               <button class="icon-btn" id="ws-info" type="button" title="How to play" aria-label="How to play">
@@ -275,13 +274,8 @@
           if (key === 'Enter') {
             btn.classList.add('ws-kb-enter');
             btn.dataset.key = 'Enter';
-            if (isMobile){
-              btn.textContent = '⏎';
-              btn.setAttribute('aria-label','Enter');
-              btn.title='Enter';
-            } else {
-              btn.textContent = 'Enter';
-            }
+            if (isMobile){ btn.textContent = '⏎'; btn.setAttribute('aria-label','Enter'); btn.title='Enter'; }
+            else { btn.textContent = 'Enter'; }
           } else if (key === 'Back') {
             btn.classList.add('ws-kb-back');
             btn.textContent = '⌫';
@@ -353,10 +347,7 @@
       }
       if (key === 'Enter') {
         const cur = global.WordscendEngine.getCursor();
-        if (cur.col === 0){
-          this.showBubble('Type a word first');
-          return;
-        }
+        if (cur.col === 0){ this.showBubble('Type a word first'); return; }
 
         const res = global.WordscendEngine.submitRow();
         if (!res.ok && res.reason === 'incomplete') {
@@ -455,10 +446,7 @@
       document.body.appendChild(wrap);
       const handler = (e) => {
         const btn = e.target.closest('button[data-action]');
-        if (!btn) {
-          if (e.target === wrap) { cb && cb(false); wrap.remove(); }
-          return;
-        }
+        if (!btn) { if (e.target === wrap) { cb && cb(false); wrap.remove(); } return; }
         const act = btn.dataset.action;
         if (act === 'ok'){ cb && cb(true); wrap.remove(); }
         if (act === 'cancel'){ cb && cb(false); wrap.remove(); }
@@ -578,32 +566,25 @@
       }catch{}
     },
 
-    showEndCard(score, streakCurrent = 0, streakBest = 0, extraMeta = {}) {
+    showEndCard(score, streakCurrent = 0, streakBest = 0, extra = {} ) {
       document.querySelector('.ws-endcard')?.remove();
 
       const wrap = document.createElement('div');
       wrap.className = 'ws-endcard';
 
-      const answer = extraMeta.answer || null;
-      const def = extraMeta.meta?.definition || null;
+      const answer = extra?.answer;
+      const meta   = extra?.meta || {};
+      const def    = meta.definition || meta.def || '';
+      const hint   = meta.hint || '';
 
-      let defHtml = '';
+      let extraHTML = '';
       if (answer) {
-        const safeAns = String(answer).toUpperCase();
-        if (def) {
-          defHtml = `
-            <div class="ws-answer-def">
-              <div class="ws-answer-word">${safeAns}</div>
-              <div class="ws-answer-def-text">${def}</div>
-            </div>
-          `;
-        } else {
-          defHtml = `
-            <div class="ws-answer-def">
-              <div class="ws-answer-word">${safeAns}</div>
-            </div>
-          `;
-        }
+        extraHTML += `<p>Today&apos;s final word: <strong>${answer.toUpperCase()}</strong></p>`;
+      }
+      if (def) {
+        extraHTML += `<p style="margin-top:4px;"><strong>Meaning:</strong> <span style="color:var(--muted);">${def}</span></p>`;
+      } else if (hint) {
+        extraHTML += `<p style="margin-top:4px;"><strong>Hint recap:</strong> <span style="color:var(--muted);">${hint}</span></p>`;
       }
 
       wrap.innerHTML = `
@@ -611,7 +592,7 @@
           <h3>Daily WordHive Complete 🎉</h3>
           <p>Your total score: <strong>${score}</strong></p>
           <p>Streak: <strong>${streakCurrent}</strong> day(s) • Best: <strong>${streakBest}</strong></p>
-          ${defHtml}
+          ${extraHTML}
           <div class="row">
             <button class="ws-btn primary" data-action="share">Share Score</button>
             <button class="ws-btn" data-action="copy">Copy Score</button>
@@ -663,7 +644,7 @@
       wrap.innerHTML = `
         <div class="card" role="dialog" aria-label="How to play WordHive">
           <h3>How to Play 🧩</h3>
-          <p>Climb through <strong>4 levels</strong> of daily WordHive puzzles — from 4-letter to 7-letter words. You have <strong>6 tries</strong> per level.</p>
+          <p>Climb through <strong>4 levels</strong> of daily word puzzles — from 4-letter to 7-letter words. You have <strong>6 tries</strong> per level.</p>
           <ul style="margin:6px 0 0 18px; color:var(--muted); line-height:1.5;">
             <li>Type or tap to guess a word of the current length.</li>
             <li>Tiles turn <strong>green</strong> (correct spot) or <strong>yellow</strong> (in word, wrong spot).</li>
@@ -719,10 +700,7 @@
 
       wrap.addEventListener('click', (e)=>{
         const btn = e.target.closest('button[data-action]');
-        if (!btn) {
-          if (e.target === wrap) wrap.remove();
-          return;
-        }
+        if (!btn) { if (e.target === wrap) wrap.remove(); return; }
         const act = btn.dataset.action;
         if (act === 'save'){
           const theme = wrap.querySelector('#ws-theme').value;
