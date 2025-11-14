@@ -28,7 +28,7 @@
 
 /* Light theme overrides */
 :root[data-theme="light"]{
-  --bg:#f6f7f9;
+  --bg:#ffffff;
   --text:#0b0d0f;
   --muted:#5c636a;
   --border:#d5d9df;
@@ -56,7 +56,7 @@ body{
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
 }
 
-/* App-controlled backdrop */
+/* App-controlled backdrop (overrides host CMS/page bg) */
 .ws-page-bg{
   position:fixed;
   inset:0;
@@ -77,44 +77,38 @@ body{
   display:flex; align-items:center; justify-content:space-between; gap:12px;
 }
 .ws-brand{
-  display:flex; align-items:center; gap:10px;
+  display:flex; align-items:center; gap:6px;
   font:800 18px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
   letter-spacing:.3px;
 }
 
-/* WordHive logo (W & H tiles) */
-.ws-logo-word{
-  display:flex;
-  align-items:center;
-  gap:4px;
-}
-.ws-logo-tile{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  width:26px;
-  height:26px;
-  border-radius:6px;
+/* Brand blocks for "W" and "H" tiles */
+.ws-brand-block{
+  width:28px;
+  height:28px;
+  border-radius:8px;
+  display:grid;
+  place-items:center;
   font-weight:800;
-  font-size:16px;
-  text-transform:uppercase;
-  background:var(--tileFilled);
-  border:1px solid var(--border);
+  font-size:18px;
+  background:var(--tile);
+  color:var(--text);
+  box-shadow:0 2px 4px rgba(0,0,0,.25);
 }
-.ws-logo-tile-w{
-  background:var(--correct);
-  border-color:var(--correct);
-  color:#000;
+.ws-brand-block-w{
+  background:#497f64;
+  color:#ffffff;
 }
-.ws-logo-tile-h{
-  background:var(--present);
-  border-color:var(--present);
-  color:#000;
+.ws-brand-block-h{
+  background:#e3b341;
+  color:#000000;
 }
-.ws-logo-rest{
-  margin-left:2px;
+.ws-brand-text{
   font-weight:800;
+  font-size:18px;
 }
+
+.ws-brand .dot{ width:10px; height:10px; border-radius:50%; background:var(--brand); display:inline-block }
 
 .ws-actions{ display:flex; align-items:center; gap:8px; }
 .icon-btn{
@@ -188,24 +182,12 @@ body{
 
 /* ===================== KEYBOARD ===================== */
 .ws-kb{
-  margin-top:8px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:8px;
-  width:100%;
-  padding:0 12px;
+  margin-top:8px; display:grid; gap:8px; width:100%; padding:0 12px;
   -webkit-tap-highlight-color: transparent;
-  max-width:560px;
-  margin-left:auto;
-  margin-right:auto;
+  max-width:min(560px, calc(var(--tileSize) * var(--ws-cols, 5) + 8px * (var(--ws-cols, 5) - 1) + 48px));
+  margin-left:auto; margin-right:auto;
 }
-.ws-kb-row{
-  display:flex;
-  justify-content:center;
-  gap:6px;
-  width:100%;
-}
+.ws-kb-row{ display:grid; grid-auto-flow:column; justify-content:center; gap:6px; }
 .ws-kb-key{
   font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
   padding:12px 10px; min-width:34px; border-radius:8px;
@@ -342,21 +324,27 @@ body{
 
   .ws-kb{
     padding:0 8px;
+    gap:10px;
+    justify-items:center;
   }
 
   .ws-kb-row{
-    flex-wrap:wrap;
+    gap:6px;
+    width:auto;
+    grid-auto-flow:column;
     justify-content:center;
+    justify-items:center;
   }
+  .ws-kb-row:nth-child(1){ grid-template-columns: repeat(10, auto); }
+  .ws-kb-row:nth-child(2){ grid-template-columns: repeat(9,  auto); }
+  .ws-kb-row:nth-child(3){ grid-template-columns: repeat(11, auto); }
 
   .ws-kb-key{
     justify-self:center; min-width:auto; min-height:clamp(40px, 9.8vw, 50px);
     padding:clamp(10px, 2.4vw, 14px) clamp(8px, 2.6vw, 12px);
     font-size:clamp(13px, 3.6vw, 16px); border-radius:10px;
   }
-  .ws-kb-enter, .ws-kb-back{
-    padding:clamp(10px, 2.4vw, 14px) clamp(10px, 3.2vw, 16px);
-  }
+  .ws-kb-enter, .ws-kb-back{ grid-column:span 2; padding:clamp(10px, 2.4vw, 14px) clamp(10px, 3.2vw, 16px); }
 
   .ws-modal .card, .ws-endcard .card { padding:16px; }
 }
