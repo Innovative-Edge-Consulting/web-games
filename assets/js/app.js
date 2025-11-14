@@ -1,449 +1,724 @@
-// /assets/js/app.js
-(function () {
-  /* ---------------- Utilities ---------------- */
-  function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src;
-      s.defer = true;
-      s.onload = resolve;
-      s.onerror = () => reject(new Error('Failed to load ' + src));
-      document.head.appendChild(s);
-    });
-  }
-  async function loadAny(urls){
-    let lastErr;
-    for (const u of urls){
-      try { await loadScript(u); return u; } catch(e){ lastErr = e; }
-    }
-    throw lastErr || new Error('All candidates failed');
-  }
+// /ui/dom-view.js
+(function (global) {
+  const KB_ROWS = [
+    ['Q','W','E','R','T','Y','U','I','O','P'],
+    ['A','S','D','F','G','H','J','K','L'],
+    ['Enter','Z','X','C','V','B','N','M','Back']
+  ];
 
-  function getParams() {
-    const p = new URLSearchParams(location.search);
-    return {
-      level:    p.get('level'),
-      endcard:  p.get('endcard'),
-      score:    p.get('score'),
-      reset:    p.get('reset'),
-      intro:    p.get('intro'),
-      settings: p.get('settings'),
-      hints:    p.get('hints'),
-      hint:     p.get('hint')
-    };
-  }
-
-  function todayKey() {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const da = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${da}`;
-  }
-  function dateMinus(ymd, n){
-    const [y,m,d] = ymd.split('-').map(Number);
-    const dt = new Date(y, m-1, d);
-    dt.setDate(dt.getDate() - n);
-    const yy = dt.getFullYear();
-    const mm = String(dt.getMonth()+1).padStart(2, '0');
-    const dd = String(dt.getDate()).padStart(2, '0');
-    return `${yy}-${mm}-${dd}`;
-  }
-  function monthKey(ymd){ const [y,m] = ymd.split('-'); return `${y}-${m}`; }
-  function daysBetween(a,b){
-    const [ay,am,ad]=a.split('-').map(Number);
-    const [by,bm,bd]=b.split('-').map(Number);
-    const da=new Date(ay,am-1,ad), db=new Date(by,bm-1,bd);
-    return Math.round((db-da)/86400000);
-  }
-
-  /* ---------------- Config ---------------- */
-  const BASE = 'https://innovative-edge-consulting.github.io/wordhive';
-  const ANSWERS_URL = `${BASE}/data/answers.json`;
-  // Use a large public word list (one word per line) to validate guesses
-  const ALLOWED_URL = `${BASE}/data/allowed.txt`;
-  const SCORE_TABLE = [100, 70, 50, 35, 25, 18]; // per-level bonus
-  const LEVEL_LENGTHS = [4, 5, 6, 7];
-  const STORE_KEY = 'wordscend_v3';
-  const HINT_PENALTY = 10;
-
-  function defaultStore() {
-    return {
-      day: todayKey(),
-      score: 0,
-      levelIndex: 0,
-      streak: {
-        current: 0, best: 0, lastPlayDay: null, markedToday: false,
-        milestones:[3,7,14,30,50,100], lastMilestoneShown:0,
-        available:0, earnedMonths:[], usedDays:[], toastDayShown:null,
-        // NEW: hint bank earned via streak
-        hintsAvailable: 0,
-        hintEarnedDays: [] // y-m-d dates when a hint was granted (to avoid double-earn on reload)
-      },
-      progress: {} // { [len]: { day, state } }
-    };
-  }
-  function migrateStreak(st){
-    if (!st) st = {};
-    st.current = Number(st.current || 0);
-    st.best = Number(st.best || 0);
-    st.lastPlayDay = st.lastPlayDay || null;
-    st.markedToday = !!st.markedToday;
-    if (!Array.isArray(st.milestones)) st.milestones = [3,7,14,30,50,100];
-    st.lastMilestoneShown = Number(st.lastMilestoneShown || 0);
-    st.available = Number(st.available || 0);
-    if (!Array.isArray(st.earnedMonths)) st.earnedMonths = [];
-    if (!Array.isArray(st.usedDays)) st.usedDays = [];
-    st.toastDayShown = st.toastDayShown || null;
-    // NEW (hint bank)
-    st.hintsAvailable = Number(st.hintsAvailable || 0);
-    if (!Array.isArray(st.hintEarnedDays)) st.hintEarnedDays = [];
-    return st;
-  }
-  function loadStore() {
-    try {
-      const raw = localStorage.getItem(STORE_KEY);
-      if (!raw) return defaultStore();
-      const parsed = JSON.parse(raw);
-
-      parsed.streak = migrateStreak(parsed.streak);
-      if (!parsed.progress || typeof parsed.progress !== 'object') parsed.progress = {};
-
-      const today = todayKey();
-      if (parsed.day !== today) {
-        parsed.day = today;
-        parsed.score = 0;
-        parsed.levelIndex = 0;
-        parsed.streak.markedToday = false;
-      }
-      if (parsed.levelLen && parsed.levelIndex == null) {
-        const idx = Math.max(0, LEVEL_LENGTHS.indexOf(parsed.levelLen));
-        parsed.levelIndex = (idx === -1) ? 0 : idx;
-        delete parsed.levelLen;
-      }
-      parsed.levelIndex = Number.isInteger(parsed.levelIndex) ? parsed.levelIndex : 0;
-      parsed.score = typeof parsed.score === 'number' ? parsed.score : 0;
-
-      return parsed;
-    } catch {
-      return defaultStore();
-    }
-  }
-  function saveStore(s){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(s)); }catch{} }
-
-  // Mark "played today" on first valid guess processed
-  function markPlayedToday(store) {
-    const today = todayKey();
-    const st = store.streak = migrateStreak(store.streak);
-    const last = st.lastPlayDay;
-
-    if (st.markedToday && last === today) return { changed:false };
-
-    let usedFreeze=false, earnedFreeze=false, newBest=false, milestone=null;
-    let earnedHint=false; // NEW
-
-    if (last === today) {
-      st.markedToday = true;
-    } else if (last === dateMinus(today, 1)) {
-      st.current = (st.current || 0) + 1;
-    } else {
-      if (last && daysBetween(last, today) === 2 && st.available > 0) {
-        st.available = Math.max(0, st.available - 1);
-        st.usedDays.push(today);
-        usedFreeze = true;
-        st.current = (st.current || 0) + 1;
+  /* ---------- Theme helpers ---------- */
+  const Theme = {
+    media: null,
+    current: null,
+    getPref() { return localStorage.getItem('ws_theme') || 'dark'; },
+    setPref(v){ try{ localStorage.setItem('ws_theme', v); }catch{} },
+    systemIsDark(){
+      this.media = this.media || window.matchMedia('(prefers-color-scheme: dark)');
+      return this.media.matches;
+    },
+    apply(pref) {
+      this.current = pref;
+      const el = document.documentElement;
+      if (pref === 'auto') {
+        el.setAttribute('data-theme', this.systemIsDark() ? 'dark':'light');
+        this.listenSystem();
       } else {
-        st.current = 1;
+        el.setAttribute('data-theme', pref);
+        this.unlistenSystem();
       }
-    }
-
-    if ((st.current || 0) > (st.best || 0)) { st.best = st.current; newBest = true; }
-
-    // Freeze earn rule (unchanged): earn 1 per month after reaching day 7 of that month
-    if (st.current >= 7) {
-      const mk = monthKey(today);
-      if (!st.earnedMonths.includes(mk)) { st.earnedMonths.push(mk); st.available += 1; earnedFreeze = true; }
-    }
-
-    // NEW: Hint earn rule – earn 1 hint each time the current streak hits a multiple of 5
-    if (st.current > 0 && st.current % 5 === 0) {
-      if (!st.hintEarnedDays.includes(today)) {
-        st.hintsAvailable += 1;
-        st.hintEarnedDays.push(today);
-        earnedHint = true;
+    },
+    listenSystem(){
+      this.media = this.media || window.matchMedia('(prefers-color-scheme: dark)');
+      if (!this._bound){
+        this._bound = (e)=> {
+          if (this.current === 'auto') {
+            document.documentElement.setAttribute('data-theme', e.matches ? 'dark':'light');
+          }
+        };
+        this.media.addEventListener?.('change', this._bound);
       }
-    }
-
-    // Milestones (for celebration copy)
-    for (const m of st.milestones){ if (st.current >= m && st.lastMilestoneShown < m) milestone = m; }
-    if (milestone) st.lastMilestoneShown = milestone;
-
-    st.lastPlayDay = today; st.markedToday = true;
-    const showToast = st.toastDayShown !== today; if (showToast) st.toastDayShown = today;
-
-    saveStore(store);
-    return { changed:true, usedFreeze, earnedFreeze, newBest, milestone, showToast, earnedHint };
-  }
-
-  // Per-day+level hint limiter key (still 1 hint max per level per day)
-  function hintUsedKeyForLen(len){
-    return `ws_hint_used_${todayKey()}_${len}`;
-  }
-
-  function applyUrlOverrides(store) {
-    const q = getParams();
-
-    // Reset everything
-    if (q.reset === '1') {
-      const fresh = defaultStore();
-      saveStore(fresh);
-      return fresh;
-    }
-
-    // Override level (?level=1..4)
-    const lvl = q.level ? parseInt(q.level, 10) : NaN;
-    if (!isNaN(lvl) && lvl >= 1 && lvl <= 4) {
-      store.levelIndex = lvl - 1;
-    }
-
-    // Debug: override hint bank (?hints=99 or ?hint=99)
-    const hintParam = q.hints ?? q.hint;
-    if (hintParam != null) {
-      const hv = parseInt(hintParam, 10);
-      if (!isNaN(hv)) {
-        store.streak = migrateStreak(store.streak);
-        store.streak.hintsAvailable = hv;
+    },
+    unlistenSystem(){
+      if (this.media && this._bound){
+        this.media.removeEventListener?.('change', this._bound);
       }
+      this._bound = null;
     }
-
-    saveStore(store);
-    return store;
-  }
-
-  /* ---------------- Bootstrap ---------------- */
-  const root = document.getElementById('game') || document.body;
-  root.innerHTML = '<div style="margin:24px 0;font:600 14px system-ui;color:var(--text);opacity:.85;">Loading…</div>';
-
-  const store = applyUrlOverrides(loadStore());
-
-  // Global live-score hook used by UI chips
-  window.WordscendApp_addScore = function(delta){
-    try {
-      const d = Number(delta || 0);
-      if (!isFinite(d) || d === 0) return;
-      // Allow negative score (requested)
-      store.score = (store.score || 0) + d;
-      saveStore(store);
-      if (window.WordscendUI) {
-        window.WordscendUI.setHUD(`Level ${store.levelIndex+1}/4`, store.score, store.streak.current, store.streak.hintsAvailable);
-      }
-    } catch {}
   };
 
-  // Save progress hook on any UI/engine change
-  window.WordscendApp_onStateChange = function(){
-    try{
-      if (!window.WordscendEngine || !window.WordscendEngine.snapshot) return;
-      const snap = window.WordscendEngine.snapshot();
-      const len = LEVEL_LENGTHS[store.levelIndex];
-      store.progress[len] = { day: store.day, state: snap };
-      saveStore(store);
-    }catch{}
+  /* ---------- Tiny sound ---------- */
+  const AudioFX = {
+    _ctx: null,
+    _enabled() { return (localStorage.getItem('ws_sound') !== '0'); },
+    _ensure() {
+      if (!this._ctx) {
+        try { this._ctx = new (window.AudioContext||window.webkitAudioContext)(); }
+        catch {}
+      }
+      return this._ctx;
+    },
+    _resumeIfNeeded() {
+      const ctx = this._ctx;
+      if (!ctx) return;
+      if (ctx.state === 'suspended') { ctx.resume().catch(()=>{}); }
+    },
+    armAutoResumeOnce() {
+      if (this._armed) return;
+      this._armed = true;
+      const resume = () => { if (this._ctx) this._resumeIfNeeded(); };
+      window.addEventListener('pointerdown', resume, { passive:true });
+      window.addEventListener('keydown', resume);
+    },
+    ding() {
+      if (!this._enabled()) return;
+      const ctx = this._ensure(); if (!ctx) return; this._resumeIfNeeded();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = 880; g.gain.value = 0.08;
+      o.connect(g); g.connect(ctx.destination);
+      const now = ctx.currentTime;
+      o.start(now);
+      g.gain.setValueAtTime(0.10, now);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+      o.stop(now + 0.2);
+    },
+    chime(){
+      if (!this._enabled()) return;
+      const ctx=this._ensure(); if (!ctx) return; this._resumeIfNeeded();
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.type='triangle'; o.frequency.value=660; g.gain.value=0.06; o.connect(g); g.connect(ctx.destination);
+      const t=ctx.currentTime; o.start(t); g.gain.setValueAtTime(0.07,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.25); o.stop(t+0.28);
+    }
   };
+  AudioFX.armAutoResumeOnce();
 
-  (async () => {
-    // --- keep BASE as the wordhive repo ---
+  const UI = {
+    mount(rootEl, config) {
+      if (!rootEl) return;
+      this.root = rootEl;
+      this.config = config || { rows:6, cols:5 };
 
-    // Helpers to build robust relative fallbacks
-    function here(path) {
-      const base = location.pathname.replace(/\/[^/]*$/, '/'); // directory of current page
-      return base + path.replace(/^\//,'');
-    }
+      const colCount = Number(this.config?.cols) || 5;
+      try {
+        document.documentElement.style.setProperty('--ws-cols', colCount);
+      } catch {}
+      try {
+        this.root.style.setProperty('--ws-cols', colCount);
+      } catch {}
 
-    // Load order matters — try repo URL first, then relative-to-page
-    await loadAny([
-      `${BASE}/core/engine.js?v=state1`,
-      `core/engine.js?v=state1`,
-      here('core/engine.js?v=state1')
-    ]);
+      Theme.apply(Theme.getPref());
 
-    await loadAny([
-      `${BASE}/ui/dom-view.js?v=state1`,
-      `ui/dom-view.js?v=state1`,
-      here('ui/dom-view.js?v=state1')
-    ]);
-
-    await loadAny([
-      `${BASE}/core/dictionary.js?v=state1`,
-      `core/dictionary.js?v=state1`,
-      here('core/dictionary.js?v=state1')
-    ]);
-
-    // Load curated lists (answers + allowed)
-    await window.WordscendDictionary.loadCustom(ANSWERS_URL, ALLOWED_URL, { minLen: 4, maxLen: 7 });
-
-    const qp = getParams();
-
-    // QA: end card preview
-    if (qp.endcard === '1') {
-      mountBlankStage();
-      window.WordscendUI.showEndCard(store.score, store.streak.current, store.streak.best, {});
-      return;
-    }
-
-    // Start the requested/current level (with restore)
-    await startLevel(store.levelIndex);
-
-    if (qp.intro === '1') window.WordscendUI.showRulesModal();
-    if (qp.settings === '1') window.WordscendUI.showSettingsModal();
-
-    /* ------------ functions ------------ */
-    function clearProgressForLen(len){
-      if (store.progress && store.progress[len]) {
-        delete store.progress[len];
-        saveStore(store);
-      }
-    }
-
-    function canUseHintForLen(len){
-      // Must have banked hints AND not used a hint for this level today
-      const k = hintUsedKeyForLen(len);
-      const usedForLevel = localStorage.getItem(k) === '1';
-      return !usedForLevel && (store.streak.hintsAvailable > 0);
-    }
-
-    function useHintForLen(len){
-      const k = hintUsedKeyForLen(len);
-      localStorage.setItem(k, '1');
-      store.streak.hintsAvailable = Math.max(0, (store.streak.hintsAvailable || 0) - 1);
-      saveStore(store);
-      // Refresh HUD so “💡 Hints” decrements immediately
-      window.WordscendUI.setHUD(`Level ${store.levelIndex+1}/4`, store.score, store.streak.current, store.streak.hintsAvailable);
-    }
-
-    async function startLevel(idx){
-      const levelLen = LEVEL_LENGTHS[idx];
-
-      const curated = window.WordscendDictionary.answersOfLength(levelLen);
-      const list = curated && curated.length ? curated : [];
-      const answer = window.WordscendDictionary.pickToday(list);
-
-      // Initialize engine
-      window.WordscendEngine.setAllowed(window.WordscendDictionary.allowedSet);
-      window.WordscendEngine.setAnswer(answer);
-      window.WordscendEngine.init({ rows:6, cols: levelLen });
-
-      // Restore progress if same day & same level length
-      const restorePack = store.progress[levelLen];
-      if (restorePack && restorePack.day === store.day && restorePack.state && window.WordscendEngine.hydrate) {
-        try{ window.WordscendEngine.hydrate(restorePack.state, { rows:6, cols:levelLen }); }
-        catch{ clearProgressForLen(levelLen); }
+      if (!document.querySelector('.ws-page-bg')){
+        const bg = document.createElement('div'); bg.className='ws-page-bg'; document.body.appendChild(bg);
       }
 
-      // Mount AFTER potential hydrate so UI renders current state
-      window.WordscendUI.mount(root, { rows:6, cols: levelLen });
+      this.root.innerHTML = `
+        <div class="ws-topbar">
+          <div class="ws-topbar-inner">
+            <div class="ws-brand" role="banner" aria-label="WordHive">
+              <span class="ws-logo-word">
+                <span class="ws-logo-tile ws-logo-tile-w">W</span>
+                <span class="ws-logo-tile ws-logo-tile-h">H</span>
+                <span class="ws-logo-rest">ordHive</span>
+              </span>
+            </div>
+            <div class="ws-actions">
+              <button class="icon-btn" id="ws-info" type="button" title="How to play" aria-label="How to play">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M12 8.5h.01M11 11.5h1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <button class="icon-btn" id="ws-settings" type="button" title="Settings" aria-label="Settings">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.89 3.31.876 2.42 2.42a1.724 1.724 0 0 0 1.065 2.572c1.757.426 1.757 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.89 1.543-.876 3.31-2.42 2.42a1.724 1.724 0 0 0-2.572 1.065c-.426 1.757-2.924 1.757-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.89-3.31-.876-2.42-2.42a1.724 1.724 0 0 0-1.065-2.572c-1.757-.426-1.757-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.89-1.543.876-3.31 2.42-2.42.996.574 2.273.097 2.573-1.065Z"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  ></path>
+                  <path
+                    d="M15 12a3 3 0 1 1-6 0a3 3 0 0 1 6 0Z"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  ></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
 
-      // Provide UI with answer meta so it can show hints/defs
-      const meta = window.WordscendDictionary.getMeta(answer);
-      window.WordscendUI.setAnswerMeta?.(answer, meta);
+        <div class="ws-hud">
+          <div class="ws-tag" id="ws-level">Level: -</div>
+          <div class="ws-hud-right">
+            <div class="ws-tag" id="ws-score">Score: 0</div>
+            <div class="ws-tag" id="ws-hints" title="Hint bank">💡 Hints 0</div>
+            <div class="ws-tag" id="ws-streak" title="Daily play streak">🔥 Streak 0</div>
+          </div>
+        </div>
 
-      // Pass hintsAvailable to HUD
-      window.WordscendUI.setHUD(`Level ${idx+1}/4`, store.score, store.streak.current, store.streak.hintsAvailable);
+        <div class="ws-stage">
+          <div class="ws-bubble" id="ws-bubble"></div>
+          <div class="ws-grid" aria-label="Game grid"></div>
+        </div>
 
-      // Hook Hint UX
-      window.WordscendUI.onHintCheck?.(() => canUseHintForLen(levelLen));
-      window.WordscendUI.onHintConsume?.(() => {
-        useHintForLen(levelLen);
-        // Deduct points even if it sends score negative
-        window.WordscendApp_addScore(-HINT_PENALTY);
+        <div class="ws-kb" aria-label="On-screen keyboard"></div>
+      `;
+
+      // Cache refs
+      this.levelEl = this.root.querySelector('#ws-level');
+      this.scoreEl = this.root.querySelector('#ws-score');
+      this.hintsEl = this.root.querySelector('#ws-hints');
+      this.streakEl= this.root.querySelector('#ws-streak');
+      this.stageEl = this.root.querySelector('.ws-stage');
+      this.gridEl  = this.root.querySelector('.ws-grid');
+      this.kbEl    = this.root.querySelector('.ws-kb');
+      this.bubble  = this.root.querySelector('#ws-bubble');
+
+      // HUD tooltips
+      this.bindHudTips();
+
+      this.renderGrid();
+      this.renderKeyboard();
+
+      this.bindHeader();
+      this.bindKeyboard();
+      this._kbClickBound = false;
+      this.bindKbClicks();
+    },
+
+    setHUD(levelText, score, streak, hintsAvail){
+      if (this.levelEl)  this.levelEl.textContent  = levelText;
+      if (this.scoreEl)  this.scoreEl.textContent  = `Score: ${score}`;
+      if (this.hintsEl)  this.hintsEl.textContent  = `💡 Hints ${hintsAvail ?? 0}`;
+      if (this.streakEl) this.streakEl.textContent = `🔥 Streak ${streak ?? 0}`;
+    },
+
+    bindHudTips(){
+      this.streakEl?.addEventListener('click', () => {
+        const msg = 'Keep your streak by playing every day. You can also earn a freeze at day 7 of a month (auto-used on a 1-day gap).';
+        this.showAnchoredTip(this.streakEl, 'Streak info', msg);
+      }, { passive:true });
+
+      this.hintsEl?.addEventListener('click', () => {
+        const msg = 'Earn 1 hint every 5-day streak milestone. Hints are banked, but you can use at most 1 per level each day.';
+        this.showAnchoredTip(this.hintsEl, 'Hint bank', msg);
+      }, { passive:true });
+    },
+
+    /* ---------- Header ---------- */
+    bindHeader(){
+      const info = this.root.querySelector('#ws-info');
+      const settings = this.root.querySelector('#ws-settings');
+      info?.addEventListener('click', ()=> this.showRulesModal(), { passive:true });
+      settings?.addEventListener('click', ()=> this.showSettingsModal(), { passive:true });
+    },
+
+    /* ---------- Rendering ---------- */
+    renderGrid() {
+      const board  = global.WordscendEngine.getBoard();
+      const marks  = global.WordscendEngine.getRowMarks();
+      const cursor = global.WordscendEngine.getCursor();
+
+      this.gridEl.innerHTML = '';
+
+      for (let r = 0; r < board.length; r++) {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'ws-row';
+        const row = board[r];
+
+        rowEl.style.gridTemplateColumns = `repeat(${row.length}, var(--tileSize))`;
+
+        for (let c = 0; c < row.length; c++) {
+          const tile = document.createElement('div');
+          tile.className = 'ws-tile';
+          const ch = row[c] || '';
+          tile.textContent = ch;
+
+          const mark = marks[r]?.[c];
+          if (mark) tile.classList.add('state-' + mark);
+
+          if (ch) tile.classList.add('filled');
+          if (r === cursor.row && c === cursor.col && !global.WordscendEngine.isDone()) {
+            tile.classList.add('active');
+          }
+          tile.dataset.row = r;
+          tile.dataset.col = c;
+          rowEl.appendChild(tile);
+        }
+
+        if (r < cursor.row) rowEl.classList.add('ws-locked');
+        this.gridEl.appendChild(rowEl);
+      }
+    },
+
+    renderKeyboard() {
+      const status = global.WordscendEngine.getKeyStatus();
+      this.kbEl.innerHTML = '';
+
+      const isMobile = (window.matchMedia && window.matchMedia('(max-width: 430px)').matches);
+
+      KB_ROWS.forEach(row => {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'ws-kb-row';
+
+        row.forEach(key => {
+          const btn = document.createElement('button');
+          btn.className = 'ws-kb-key';
+          btn.type = 'button';
+          btn.tabIndex = 0;
+
+          if (key === 'Enter') {
+            btn.classList.add('ws-kb-enter');
+            btn.dataset.key = 'Enter';
+            if (isMobile){ btn.textContent = '⏎'; btn.setAttribute('aria-label','Enter'); btn.title='Enter'; }
+            else { btn.textContent = 'Enter'; }
+          } else if (key === 'Back') {
+            btn.classList.add('ws-kb-back');
+            btn.textContent = '⌫';
+            btn.dataset.key = 'Backspace';
+          } else {
+            btn.textContent = key;
+            btn.dataset.key = key;
+          }
+
+          const s = status[btn.dataset.key];
+          if (s) btn.classList.add('k-' + s);
+
+          rowEl.appendChild(btn);
+        });
+
+        this.kbEl.appendChild(rowEl);
       });
+    },
 
-      const origSubmit = window.WordscendEngine.submitRow.bind(window.WordscendEngine);
-      window.WordscendEngine.submitRow = function(){
-        const res = origSubmit();
+    /* ---------- Input (physical keyboard) ---------- */
+    bindKeyboard() {
+      if (this._keyBound) return;
+      this._keyBound = true;
 
-        // Count "played" on any valid processed row
-        if (res && res.ok) {
-          const stInfo = markPlayedToday(store);
-          if (stInfo && stInfo.changed){
-            window.WordscendUI.setHUD(`Level ${idx+1}/4`, store.score, store.streak.current, store.streak.hintsAvailable);
-            if (stInfo.showToast){
-              window.WordscendUI.showStreakToast?.(store.streak.current, {
-                usedFreeze: stInfo.usedFreeze,
-                earnedFreeze: stInfo.earnedFreeze,
-                milestone: stInfo.milestone,
-                newBest: stInfo.newBest,
-                freezesAvail: store.streak.available,
-                earnedHint: stInfo.earnedHint,
-                hintsAvail: store.streak.hintsAvailable
-              });
+      window.addEventListener('keydown', (e) => {
+        const tag = (e.target && e.target.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || e.metaKey || e.ctrlKey || e.altKey) return;
+
+        if (e.key === 'Escape') {
+          document.querySelector('.ws-modal')?.remove();
+          document.querySelector('.ws-endcard')?.remove();
+          document.querySelector('.ws-streak-toast')?.remove();
+          document.querySelector('.ws-streak-tip')?.remove();
+          return;
+        }
+
+        this.handleInput(e.key);
+      });
+    },
+
+    /* ---------- Input (on-screen keyboard) ---------- */
+    bindKbClicks() {
+      if (this._kbClickBound) return;
+      this._kbClickBound = true;
+
+      this.kbEl.addEventListener('pointerup', (e) => {
+        const btn = e.target.closest('.ws-kb-key');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.handleInput(btn.dataset.key);
+      }, { passive: false });
+    },
+
+    handleInput(key) {
+      if (/^[A-Za-z]$/.test(key)) {
+        if (global.WordscendEngine.addLetter(key)) {
+          this.renderGrid();
+          global.WordscendApp_onStateChange?.({ type: 'letter' });
+        }
+        return;
+      }
+      if (key === 'Backspace') {
+        if (global.WordscendEngine.backspace()) {
+          this.renderGrid();
+          global.WordscendApp_onStateChange?.({ type: 'backspace' });
+        }
+        return;
+      }
+      if (key === 'Enter') {
+        const cur = global.WordscendEngine.getCursor();
+        if (cur.col === 0){ this.showBubble('Type a word first'); return; }
+
+        const res = global.WordscendEngine.submitRow();
+        if (!res.ok && res.reason === 'incomplete') {
+          this.shakeCurrentRow();
+          this.showBubble('Not enough letters');
+          return;
+        }
+        if (!res.ok && res.reason === 'invalid') {
+          this.shakeCurrentRow();
+          this.showBubble('Not in word list');
+          return;
+        }
+
+        this.flipRevealRow(res.attempt - 1, res.marks);
+        this.renderKeyboard();
+
+        if (res.done) {
+          setTimeout(() => this.renderGrid(), 420 + (this.config.cols - 1) * 80);
+        }
+        if (res.ok) {
+          global.WordscendApp_onStateChange?.({ type: 'submit', result: res });
+        }
+        return;
+      }
+    },
+
+    /* ---------- Hint UX ---------- */
+    _answerMeta: null,
+    setAnswerMeta(answer, meta){
+      this._answerMeta = { answer, meta };
+      if (!this._hintBtn){
+        const btn = document.createElement('button');
+        btn.className = 'ws-btn';
+        btn.textContent = 'Show Hint';
+        btn.style.marginTop = '6px';
+        btn.addEventListener('click', () => this.requestHintFlow(), { passive:true });
+        this.stageEl?.prepend(btn);
+        this._hintBtn = btn;
+      }
+    },
+    onHintCheck: null,
+    onHintConsume: null,
+
+    requestHintFlow(){
+      const canUse = (typeof this.onHintCheck === 'function') ? !!this.onHintCheck() : false;
+      if (!canUse){
+        this.showBubble('No hint available for this level');
+        return;
+      }
+      this.showConfirm('Reveal a hint?', 'You will lose 10 points to reveal a hint. Continue?', (ok) => {
+        if (!ok) return;
+        try {
+          if (typeof this.onHintConsume === 'function') this.onHintConsume();
+        } catch {}
+        const meta = this._answerMeta?.meta || {};
+        const hintText = (meta && meta.hint) ? String(meta.hint) : 'No hint available for this word.';
+        this.showHintToast(hintText);
+      });
+    },
+
+    showHintToast(text){
+      document.querySelector('.ws-streak-toast')?.remove();
+
+      const t = document.createElement('div');
+      t.className = 'ws-streak-toast show';
+      t.innerHTML = `<strong>Hint</strong><span class="sub">${text}</span>`;
+
+      const row = document.createElement('div');
+      row.style.marginTop = '8px';
+      row.className = 'row';
+
+      const close = document.createElement('button');
+      close.className = 'ws-btn';
+      close.textContent = 'Close';
+      close.addEventListener('click', () => t.remove(), { passive:true });
+
+      row.appendChild(close);
+      t.appendChild(row);
+      document.body.appendChild(t);
+    },
+
+    showConfirm(title, message, cb){
+      document.querySelector('.ws-modal')?.remove();
+      const wrap = document.createElement('div');
+      wrap.className = 'ws-modal';
+      wrap.innerHTML = `
+        <div class="card" role="dialog" aria-label="${title}">
+          <h3>${title}</h3>
+          <p>${message}</p>
+          <div class="row">
+            <button class="ws-btn primary" data-action="ok">Yes</button>
+            <button class="ws-btn" data-action="cancel">Cancel</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(wrap);
+      const handler = (e) => {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) { if (e.target === wrap) { cb && cb(false); wrap.remove(); } return; }
+        const act = btn.dataset.action;
+        if (act === 'ok'){ cb && cb(true); wrap.remove(); }
+        if (act === 'cancel'){ cb && cb(false); wrap.remove(); }
+      };
+      wrap.addEventListener('click', handler, { passive:true });
+      window.addEventListener('keydown', (e)=>{ if (e.key==='Escape'){ cb && cb(false); wrap.remove(); }}, { once:true });
+    },
+
+    showAnchoredTip(anchorEl, title, text){
+      document.querySelector('.ws-streak-tip')?.remove();
+      if (!anchorEl) return;
+      const r = anchorEl.getBoundingClientRect();
+      const tip = document.createElement('div');
+      tip.className = 'ws-streak-tip';
+      tip.innerHTML = `<strong>${title}</strong><div class="sub" style="margin-top:6px;">${text}</div>`;
+      tip.style.position = 'fixed';
+      tip.style.left = `${r.left}px`;
+      tip.style.top  = `${r.bottom + 8}px`;
+      document.body.appendChild(tip);
+      requestAnimationFrame(()=> tip.classList.add('show'));
+      const close = () => { tip.remove(); window.removeEventListener('click', away, true); };
+      const away = (e) => { if (!tip.contains(e.target)) close(); };
+      window.addEventListener('click', away, true);
+    },
+
+    /* ---------- Animations & Helpers ---------- */
+    flipRevealRow(rowIndex, marks) {
+      const rows = this.gridEl.querySelectorAll('.ws-row');
+      const rowEl = rows[rowIndex];
+      if (!rowEl) return;
+
+      const tiles = Array.from(rowEl.querySelectorAll('.ws-tile'));
+      tiles.forEach((tile, i) => {
+        const delay = i * 80;
+        tile.style.setProperty('--flip-delay', `${delay}ms`);
+        tile.classList.add('flip');
+
+        setTimeout(() => {
+          const mark = marks[i];
+          if (mark) {
+            tile.classList.remove('state-correct','state-present','state-absent');
+            tile.classList.add('state-' + mark);
+
+            if (mark === 'correct') {
+              this.floatPointsFromTile(tile, +2, 'green');
+              AudioFX.ding();
+            } else if (mark === 'present') {
+              this.floatPointsFromTile(tile, +1, 'yellow');
             }
           }
+        }, delay + 210);
+      });
+
+      setTimeout(() => this.renderGrid(), 420 + (tiles.length - 1) * 80);
+    },
+
+    shakeCurrentRow() {
+      const cursor = global.WordscendEngine.getCursor();
+      const rows = this.gridEl.querySelectorAll('.ws-row');
+      const rowEl = rows[cursor.row];
+      if (!rowEl) return;
+      rowEl.classList.remove('shake'); void rowEl.offsetWidth;
+      rowEl.classList.add('shake');
+      setTimeout(() => rowEl.classList.remove('shake'), 400);
+    },
+
+    showBubble(msg) {
+      if (!this.bubble) return;
+      this.bubble.textContent = msg;
+      this.bubble.classList.add('show');
+      clearTimeout(this._bT);
+      this._bT = setTimeout(() => this.bubble.classList.remove('show'), 1400);
+    },
+
+    floatPointsFromTile(tileEl, delta, color='green'){
+      try{
+        const scoreEl = this.scoreEl;
+        if (!tileEl || !scoreEl) return;
+
+        const tRect = tileEl.getBoundingClientRect();
+        const sRect = scoreEl.getBoundingClientRect();
+
+        const chip = document.createElement('div');
+        chip.className = `ws-fxfloat ${color==='green' ? 'green' : 'yellow'}`;
+        chip.textContent = (delta > 0 ? `+${delta}` : `${delta}`);
+        chip.style.left = `${tRect.left + tRect.width/2}px`;
+        chip.style.top  = `${tRect.top  + tRect.height/2}px`;
+        chip.style.transform = 'translate(-50%, -50%) scale(1)';
+        document.body.appendChild(chip);
+
+        requestAnimationFrame(()=>{
+          const midX = (tRect.left + sRect.left)/2;
+          const midY = Math.min(tRect.top, sRect.top) - 40;
+
+          chip.style.transitionTimingFunction = 'cubic-bezier(.22,.82,.25,1)';
+          chip.style.left = `${midX}px`;
+          chip.style.top  = `${midY}px`;
+          chip.style.transform = 'translate(-50%, -50%) scale(1.05)';
+
+          setTimeout(()=>{
+            chip.style.left = `${sRect.left + sRect.width/2}px`;
+            chip.style.top  = `${sRect.top  + sRect.height/2}px`;
+            chip.style.transform = 'translate(-50%, -50%) scale(0.8)';
+            chip.style.opacity = '0.0';
+          }, 160);
+        });
+
+        setTimeout(()=>{
+          chip.remove();
+          if (typeof window.WordscendApp_addScore === 'function') {
+            window.WordscendApp_addScore(delta);
+          }
+          scoreEl.classList.remove('pulse'); void scoreEl.offsetWidth;
+          scoreEl.classList.add('pulse');
+          setTimeout(()=>scoreEl.classList.remove('pulse'), 260);
+        }, 480);
+      }catch{}
+    },
+
+    showEndCard(score, streakCurrent = 0, streakBest = 0, extra = {} ) {
+      document.querySelector('.ws-endcard')?.remove();
+
+      const wrap = document.createElement('div');
+      wrap.className = 'ws-endcard';
+
+      const answer = extra?.answer;
+      const meta   = extra?.meta || {};
+      const def    = meta.definition || meta.def || '';
+      const hint   = meta.hint || '';
+
+      let extraHTML = '';
+      if (answer) {
+        extraHTML += `<p>Today&apos;s final word: <strong>${answer.toUpperCase()}</strong></p>`;
+      }
+      if (def) {
+        extraHTML += `<p style="margin-top:4px;"><strong>Meaning:</strong> <span style="color:var(--muted);">${def}</span></p>`;
+      } else if (hint) {
+        extraHTML += `<p style="margin-top:4px;"><strong>Hint recap:</strong> <span style="color:var(--muted);">${hint}</span></p>`;
+      }
+
+      wrap.innerHTML = `
+        <div class="card">
+          <h3>Daily WordHive Complete 🎉</h3>
+          <p>Your total score: <strong>${score}</strong></p>
+          <p>Streak: <strong>${streakCurrent}</strong> day(s) • Best: <strong>${streakBest}</strong></p>
+          ${extraHTML}
+          <div class="row">
+            <button class="ws-btn primary" data-action="share">Share Score</button>
+            <button class="ws-btn" data-action="copy">Copy Score</button>
+            <button class="ws-btn" data-action="close">Close</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(wrap);
+
+      const shareText = `I just finished today's WordHive (4→7 letters) with ${score} points! Streak: ${streakCurrent} (best ${streakBest}).`;
+      wrap.addEventListener('click', async (e) => {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+        const act = btn.dataset.action;
+        if (act === 'close') wrap.remove();
+        if (act === 'copy') {
+          try { await navigator.clipboard.writeText(shareText); btn.textContent = 'Copied!'; }
+          catch { btn.textContent = 'Copy failed'; }
         }
-
-        // Persist snapshot after submit processing
-        window.WordscendApp_onStateChange?.();
-
-        if (res && res.ok && res.done) {
-          if (res.win) {
-            const attempt = res.attempt ?? 6;
-            const gained = SCORE_TABLE[Math.min(Math.max(attempt,1),6) - 1] || 0;
-
-            // Add per-level bonus on top of live chip points
-            store.score += gained;
-            saveStore(store);
-
-            window.WordscendUI.setHUD(`Level ${idx+1}/4`, store.score, store.streak.current, store.streak.hintsAvailable);
-            window.WordscendUI.showBubble(`+${gained} pts`);
-
-            const isLast = (idx === LEVEL_LENGTHS.length - 1);
-            setTimeout(() => {
-              // Clear progress for the level we just finished
-              clearProgressForLen(levelLen);
-
-              if (isLast) {
-                // pass meta so end-card can offer definition
-                const metaNow = window.WordscendDictionary.getMeta(answer);
-                window.WordscendUI.showEndCard(store.score, store.streak.current, store.streak.best, {
-                  answer, meta: metaNow
-                });
-
-                // Reset score/level for next day’s run (streak persists)
-                store.day = todayKey();
-                store.score = 0;
-                store.levelIndex = 0;
-                saveStore(store);
-              } else {
-                store.levelIndex = idx + 1;
-                saveStore(store);
-                startLevel(store.levelIndex);
-              }
-            }, 1200);
-
+        if (act === 'share') {
+          if (navigator.share) {
+            try { await navigator.share({ text: shareText }); } catch{}
           } else {
-            // Fail: retry same level — clear progress so new grid starts clean
-            window.WordscendUI.showBubble('Out of tries. Try again');
-            clearProgressForLen(levelLen);
-            saveStore(store);
-            setTimeout(() => startLevel(idx), 1200);
+            try { await navigator.clipboard.writeText(shareText); btn.textContent = 'Copied!'; }
+            catch { btn.textContent = 'Share not supported'; }
           }
         }
-        return res;
-      };
-    }
+      }, { passive:true });
 
-    function mountBlankStage(){
-      window.WordscendUI.mount(root, { rows:6, cols:5 });
-      window.WordscendUI.setHUD(`Level ${store.levelIndex+1}/4`, store.score, store.streak.current, store.streak.hintsAvailable);
-    }
+      window.addEventListener('keydown', (e)=>{ if (e.key==='Escape'){ wrap.remove(); }}, { once:true });
+    },
 
-    // Persist on unload as a safety
-    window.addEventListener('beforeunload', () => {
-      try{ window.WordscendApp_onStateChange && window.WordscendApp_onStateChange(); }catch{}
-    });
+    /* ---------- Modals ---------- */
+    showRulesModal() {
+      document.querySelector('.ws-modal')?.remove();
+      const wrap = document.createElement('div');
+      wrap.className = 'ws-modal';
 
-  })().catch(err => {
-    console.error('[Wordscend] Bootstrap failed:', err);
-    root.innerHTML = '<div style="margin:24px 0;font:600 14px system-ui;color:var(--text);">Failed to load. Please refresh.</div>';
-  });
-})();
+      const exampleRowHTML = `
+        <div class="ws-row" style="display:grid;grid-template-columns:repeat(5,var(--tileSize));gap:8px;margin-top:8px;">
+          <div class="ws-tile filled state-correct">P</div>
+          <div class="ws-tile filled state-present">L</div>
+          <div class="ws-tile filled state-absent">A</div>
+          <div class="ws-tile filled state-absent">N</div>
+          <div class="ws-tile filled state-present">T</div>
+        </div>
+      `;
+
+      wrap.innerHTML = `
+        <div class="card" role="dialog" aria-label="How to play WordHive">
+          <h3>How to Play 🧩</h3>
+          <p>Climb through <strong>4 levels</strong> of daily word puzzles — from 4-letter to 7-letter words. You have <strong>6 tries</strong> per level.</p>
+          <ul style="margin:6px 0 0 18px; color:var(--muted); line-height:1.5;">
+            <li>Type or tap to guess a word of the current length.</li>
+            <li>Tiles turn <strong>green</strong> (correct spot) or <strong>yellow</strong> (in word, wrong spot).</li>
+            <li>Beat a level to advance to the next length.</li>
+            <li>Keep your <strong>🔥 streak</strong> by playing each day.</li>
+          </ul>
+          ${exampleRowHTML}
+          <div class="row" style="margin-top:10px;">
+            <button class="ws-btn primary" data-action="close">Got it</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(wrap);
+      wrap.addEventListener('click', (e)=>{
+        if (e.target.dataset.action === 'close' || e.target === wrap) wrap.remove();
+      }, { passive:true });
+      window.addEventListener('keydown', (e)=>{ if (e.key==='Escape'){ wrap.remove(); }}, { once:true });
+    },
+
+    showSettingsModal() {
+      document.querySelector('.ws-modal')?.remove();
+      const wrap = document.createElement('div');
+      wrap.className = 'ws-modal';
+
+      const sound = localStorage.getItem('ws_sound') !== '0';
+      const themePref = (localStorage.getItem('ws_theme') || 'dark');
+
+      wrap.innerHTML = `
+        <div class="card" role="dialog" aria-label="Settings">
+          <h3>Settings ⚙️</h3>
+          <div class="ws-form">
+            <div class="ws-field">
+              <label for="ws-theme">Theme</label>
+              <select id="ws-theme">
+                <option value="dark"  ${themePref==='dark'?'selected':''}>Dark</option>
+                <option value="light" ${themePref==='light'?'selected':''}>Light</option>
+                <option value="auto"  ${themePref==='auto'?'selected':''}>Auto (system)</option>
+              </select>
+            </div>
+            <div class="ws-field">
+              <label for="ws-sound">Sound effects</label>
+              <input id="ws-sound" type="checkbox" ${sound?'checked':''}/>
+            </div>
+          </div>
+          <div class="row">
+            <button class="ws-btn primary" data-action="save">Save</button>
+            <button class="ws-btn" data-action="close">Close</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(wrap);
+
+      wrap.addEventListener('click', (e)=>{
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) { if (e.target === wrap) wrap.remove(); return; }
+        const act = btn.dataset.action;
+        if (act === 'save'){
+          const theme = wrap.querySelector('#ws-theme').value;
+          const s = wrap.querySelector('#ws-sound').checked;
+          try {
+            Theme.setPref(theme);
+            Theme.apply(theme);
+            localStorage.setItem('ws_sound', s ? '1':'0');
+          } catch {}
+          btn.textContent='Saved';
+          setTimeout(()=>wrap.remove(), 420);
+        }
+        if (act === 'close') wrap.remove();
+      }, { passive:true });
+
+      window.addEventListener('keydown', (e)=>{ if (e.key==='Escape'){ wrap.remove(); }}, { once:true });
+    },
+  };
+
+  global.WordscendUI = UI;
+})(window);
