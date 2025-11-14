@@ -570,7 +570,7 @@
       wrap.className = 'ws-endcard';
       wrap.innerHTML = `
         <div class="card">
-          <h3>Daily Wordscend Complete 🎉</h3>
+          <h3>Daily WordHive Complete 🎉</h3>
           <p>Your total score: <strong>${score}</strong></p>
           <p>Streak: <strong>${streakCurrent}</strong> day(s) • Best: <strong>${streakBest}</strong></p>
           <div class="row">
@@ -622,7 +622,7 @@
       `;
 
       wrap.innerHTML = `
-        <div class="card" role="dialog" aria-label="How to play Wordscend">
+        <div class="card" role="dialog" aria-label="How to play WordHive">
           <h3>How to Play 🧩</h3>
           <p>Climb through <strong>4 levels</strong> of daily word puzzles — from 4-letter to 7-letter words. You have <strong>6 tries</strong> per level.</p>
           <ul style="margin:6px 0 0 18px; color:var(--muted); line-height:1.5;">
