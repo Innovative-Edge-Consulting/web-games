@@ -612,12 +612,12 @@
           chip.style.transitionTimingFunction = 'cubic-bezier(.22,.82,.25,1)';
           chip.style.left = `${midX}px`;
           chip.style.top  = `${midY}px`;
-          chip.style.transform = 'translate(-50%, -50%) scale(1.05)`;
+          chip.style.transform = 'translate(-50%, -50%) scale(1.05)';
 
           setTimeout(()=>{
             chip.style.left = `${sRect.left + sRect.width/2}px`;
             chip.style.top  = `${sRect.top  + sRect.height/2}px`;
-            chip.style.transform = 'translate(-50%, -50%) scale(0.8)`;
+            chip.style.transform = 'translate(-50%, -50%) scale(0.8)';
             chip.style.opacity = '0.0';
           }, 160);
         });
