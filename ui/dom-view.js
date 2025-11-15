@@ -458,6 +458,12 @@
       this._hintText = m && m.hint ? String(m.hint) : 'No hint available for this word.';
       this._hintRevealed = false;
 
+      // Remove any hint glow from previous level
+      const beeEl = document.querySelector('.ws-helper-bee');
+      if (beeEl) {
+        beeEl.classList.remove('hint-active');
+      }
+
       // Ensure a hint trigger exists (button or bee will call requestHintFlow)
       if (!this._hintBtn){
         const btn = document.createElement('button');
@@ -503,6 +509,13 @@
           const hintText = this._hintText || 'No hint available for this word.';
           this._hintRevealed = true;
           this._hintText = hintText;
+
+          // Turn on bee glow to show a hint is active for this level
+          const beeEl = document.querySelector('.ws-helper-bee');
+          if (beeEl) {
+            beeEl.classList.add('hint-active');
+          }
+
           this.showHintToast(hintText);
         }
       );

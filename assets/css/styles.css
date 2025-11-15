@@ -458,6 +458,13 @@ body{
   cursor:pointer;
 }
 
+/* 🟢 Bee glow when a hint has been revealed for this level */
+.ws-helper-bee.hint-active{
+  box-shadow:
+    0 0 0 2px var(--brand),
+    0 0 14px rgba(73,127,100,0.7);
+}
+
 .ws-helper-bee.ws-helper-disabled{
   opacity:0.4;
 }
