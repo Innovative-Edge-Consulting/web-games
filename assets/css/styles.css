@@ -28,7 +28,7 @@
 
 /* Light theme overrides */
 :root[data-theme="light"]{
-  --bg:#f6f7f9;
+  --bg:#ffffff;
   --text:#0b0d0f;
   --muted:#5c636a;
   --border:#d5d9df;
