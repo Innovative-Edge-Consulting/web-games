@@ -250,25 +250,27 @@
 
     updateHelperPosition(){
       try{
-        if (!this.helperEl || !this.stageEl || !this.gridEl || !global.WordscendEngine || !global.WordscendEngine.getCursor) return;
+        if (!this.helperEl || !this.stageEl || !this.gridEl || !window.WordscendEngine || !window.WordscendEngine.getCursor) return;
+
         const rows = this.gridEl.querySelectorAll('.ws-row');
         if (!rows.length) return;
 
-        const cur = global.WordscendEngine.getCursor();
+        const cur = window.WordscendEngine.getCursor();
         let idx = (cur && typeof cur.row === 'number') ? cur.row : 0;
-        if (idx < 0) idx = 0;
-        if (idx >= rows.length) idx = rows.length - 1;
+        idx = Math.max(0, Math.min(idx, rows.length - 1));
 
         const rowEl = rows[idx];
         const rowRect = rowEl.getBoundingClientRect();
         const stageRect = this.stageEl.getBoundingClientRect();
+        const helperRect = this.helperEl.getBoundingClientRect();
 
-        const mid = rowRect.top + rowRect.height / 2;
-        const offset = mid - stageRect.top;
+        const rowCenter = rowRect.top + rowRect.height / 2;
+        const offset = rowCenter - stageRect.top;
+        const corrected = offset - helperRect.height / 2;
 
-        this.helperEl.style.top = offset + 'px';
-        this.helperEl.style.transform = 'translateY(-50%)';
-      } catch {}
+        this.helperEl.style.top = corrected + 'px';
+        this.helperEl.style.transform = 'none';
+      } catch(e) {}
     },
 
     /* ---------- Rendering ---------- */
