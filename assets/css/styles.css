@@ -178,18 +178,36 @@ body{
 }
 
 .ws-kb-key{
+  display:flex;
+  align-items:center;
+  justify-content:center;
   font:600 14px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-  padding:12px 10px; min-width:34px; border-radius:8px;
-  border:1px solid var(--border); background:var(--btnBg); color:var(--text);
-  cursor:pointer; user-select:none; touch-action:manipulation;
+  padding:12px 10px;
+  min-width:34px;
+  border-radius:8px;
+  border:1px solid var(--border);
+  background:var(--btnBg);
+  color:var(--text);
+  cursor:pointer;
+  user-select:none;
+  touch-action:manipulation;
 }
 .ws-kb-key:active{ transform:translateY(1px) }
-.ws-kb-enter{ padding:12px 14px }
-.ws-kb-back{  padding:12px 14px }
+.ws-kb-enter{ padding:12px 14px; }
+.ws-kb-back{  padding:12px 14px; }
 
 .ws-kb-key.k-correct{ background:var(--correct); border-color:var(--correct); color:#000; }
 .ws-kb-key.k-present{ background:var(--present); border-color:var(--present); color:#000; }
 .ws-kb-key.k-absent{  background:var(--absent);  border-color:#000; color:var(--text); }
+
+/* Desktop: give Enter/Back more room so label/icon stay centered */
+@media (min-width:431px){
+  .ws-kb-enter,
+  .ws-kb-back{
+    min-width:72px;
+    padding:12px 18px;
+  }
+}
 
 /* ===================== BUBBLE ===================== */
 .ws-bubble{
@@ -323,11 +341,17 @@ body{
   }
 
   .ws-kb-key{
-    justify-self:center; min-width:auto; min-height:clamp(40px, 9.8vw, 50px);
+    justify-self:center;
+    min-width:auto;
+    min-height:clamp(40px, 9.8vw, 50px);
     padding:clamp(10px, 2.4vw, 14px) clamp(8px, 2.6vw, 12px);
-    font-size:clamp(13px, 3.6vw, 16px); border-radius:10px;
+    font-size:clamp(13px, 3.6vw, 16px);
+    border-radius:10px;
   }
-  .ws-kb-enter, .ws-kb-back{ grid-column:span 2; padding:clamp(10px, 2.4vw, 14px) clamp(10px, 3.2vw, 16px); }
+  .ws-kb-enter, .ws-kb-back{
+    grid-column:span 2;
+    padding:clamp(10px, 2.4vw, 14px) clamp(10px, 3.2vw, 16px);
+  }
 
   .ws-modal .card, .ws-endcard .card { padding:16px; }
 }
