@@ -329,7 +329,7 @@
       localStorage.setItem(k, '1');
       store.streak.hintsAvailable = Math.max(0, (store.streak.hintsAvailable || 0) - 1);
       saveStore(store);
-      // Refresh HUD so the helper bee state updates immediately
+      // Refresh HUD so “💡 Hints” decrements immediately
       window.WordscendUI.setHUD(`Level ${store.levelIndex+1}/4`, store.score, store.streak.current, store.streak.hintsAvailable);
     }
 
