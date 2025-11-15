@@ -446,28 +446,66 @@
 
     /* ---------- Hint UX ---------- */
     _answerMeta: null,
+    _hintText: null,
+    _hintRevealed: false,
+
     setAnswerMeta(answer, meta){
-      // just store; Bee will trigger the flow, and hint text comes from meta when revealed
-      this._answerMeta = { answer: answer, meta: meta };
+      // Store answer + meta for this level
+      this._answerMeta = { answer, meta: meta || {} };
+
+      // Precompute the hint text and reset "revealed" state
+      const m = this._answerMeta.meta || {};
+      this._hintText = m && m.hint ? String(m.hint) : 'No hint available for this word.';
+      this._hintRevealed = false;
+
+      // Ensure a hint trigger exists (button or bee will call requestHintFlow)
+      if (!this._hintBtn){
+        const btn = document.createElement('button');
+        btn.className = 'ws-btn';
+        btn.textContent = 'Show Hint';
+        btn.style.marginTop = '6px';
+        btn.addEventListener('click', () => this.requestHintFlow(), { passive:true });
+        this.stageEl?.prepend(btn);
+        this._hintBtn = btn;
+      }
     },
+
     onHintCheck: null,
     onHintConsume: null,
 
     requestHintFlow(){
+      // If this level's hint has already been revealed, just show it again for free
+      if (this._hintRevealed && this._hintText){
+        this.showHintToast(this._hintText);
+        return;
+      }
+
+      // Otherwise, check if we can use a hint from the bank
       const canUse = (typeof this.onHintCheck === 'function') ? !!this.onHintCheck() : false;
       if (!canUse){
         this.showBubble('No hint available for this level');
         return;
       }
-      this.showConfirm('Reveal a hint?', 'You will lose 10 points to reveal a hint. Continue?', (ok) => {
-        if (!ok) return;
-        try {
-          if (typeof this.onHintConsume === 'function') this.onHintConsume();
-        } catch {}
-        const meta = this._answerMeta?.meta || {};
-        const hintText = (meta && meta.hint) ? String(meta.hint) : 'No hint available for this word.';
-        this.showHintToast(hintText);
-      });
+
+      // First-time reveal: confirm cost, then consume + store hint as "revealed"
+      this.showConfirm(
+        'Reveal a hint?',
+        'You will lose 10 points to reveal a hint. Continue?',
+        (ok) => {
+          if (!ok) return;
+
+          try {
+            if (typeof this.onHintConsume === 'function') {
+              this.onHintConsume(); // deduct 1 hint + 10 pts (handled in app.js)
+            }
+          } catch {}
+
+          const hintText = this._hintText || 'No hint available for this word.';
+          this._hintRevealed = true;
+          this._hintText = hintText;
+          this.showHintToast(hintText);
+        }
+      );
     },
 
     showHintToast(text){
