@@ -215,17 +215,16 @@
         + '<div class="ws-stage">'
         + '  <div class="ws-bubble" id="ws-bubble"></div>'
         + '  <div class="ws-grid" aria-label="Game grid"></div>'
+        + '  <div class="ws-helper" id="ws-helper">'
+        + '    <button class="ws-helper-bee" id="ws-helper-bee" type="button" aria-label="Use a hint">🐝</button>'
+        + '    <div class="ws-helper-bubble" id="ws-helper-bubble">'
+        + '      <strong>Hint Bee</strong>'
+        + '      <span class="ws-helper-text" id="ws-helper-text">No hints available yet. Keep your streak going to earn hints.</span>'
+        + '    </div>'
+        + '  </div>'
         + '</div>'
 
-        + '<div class="ws-kb" aria-label="On-screen keyboard"></div>'
-
-        + '<div class="ws-helper" id="ws-helper">'
-        + '  <button class="ws-helper-bee" id="ws-helper-bee" type="button" aria-label="Use a hint">🐝</button>'
-        + '  <div class="ws-helper-bubble" id="ws-helper-bubble">'
-        + '    <strong>Hint Bee</strong>'
-        + '    <span class="ws-helper-text" id="ws-helper-text">No hints available yet. Keep your streak going to earn hints.</span>'
-        + '  </div>'
-        + '</div>';
+        + '<div class="ws-kb" aria-label="On-screen keyboard"></div>';
 
       // Cache refs
       this.levelEl = this.root.querySelector('#ws-level');
