@@ -598,6 +598,8 @@
         }
 
         bubble.textContent = msg || 'Buzz - need a hint?';
+        bubble.classList.remove('show');
+        void bubble.offsetWidth;
         bubble.classList.add('show');
 
         clearTimeout(this._helperBubbleTimer);
