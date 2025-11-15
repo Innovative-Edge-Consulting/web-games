@@ -164,7 +164,7 @@ body{
   margin-right:auto;
 
   /* Reserve room for the Hint Bee on the right (desktop/tablet) */
-  padding-right:80px;
+  padding-right:56px;
 }
 
 /* ===================== GRID ===================== */
@@ -432,7 +432,7 @@ body{
 .ws-helper{
   position:absolute;
   top:50%;
-  right:-56px;
+  right:-44px;
   transform:translateY(-50%);
   z-index:80;
   width:44px;
