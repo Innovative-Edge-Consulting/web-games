@@ -162,6 +162,9 @@ body{
   width:auto;
   margin-left:auto;
   margin-right:auto;
+
+  /* Reserve room for the Hint Bee on the right (desktop/tablet) */
+  padding-right:80px;
 }
 
 /* ===================== GRID ===================== */
@@ -415,6 +418,11 @@ body{
   }
 
   .ws-modal .card, .ws-endcard .card { padding:16px; }
+
+  /* On small screens, don’t reserve extra bee space */
+  .ws-stage{
+    padding-right:0;
+  }
 }
 
 .ws-hud-right { gap:8px; }
