@@ -237,7 +237,7 @@ body{
   }
 }
 
-/* Unified message panel — used for system bubbles + hint toast */
+/* Unified, responsive system message bubbles (errors + hints) */
 .ws-bubble,
 .ws-streak-toast{
   position:absolute;
@@ -248,18 +248,21 @@ body{
   color:var(--text);
   border:1px solid var(--border);
   border-radius:12px;
-  padding:12px 16px;
+  padding:12px 18px;
   font:700 14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
   box-shadow:var(--bubbleShadow);
   z-index:200;
   opacity:0;
   pointer-events:none;
-  max-width:min(320px, 90%);
+
+  /* ✅ Wider, but still responsive */
+  max-width:min(440px, 92vw);  /* was ~320px before */
   text-align:center;
+  white-space:normal;          /* allow normal wrapping */
+  word-break:normal;
   transition:opacity .22s ease, transform .22s ease;
 }
 
-/* Show state: fade + slight pop animation, and clickable */
 .ws-bubble.show,
 .ws-streak-toast.show{
   opacity:1;
@@ -267,7 +270,7 @@ body{
   pointer-events:auto;
 }
 
-/* Extra layout for hint/streak toast content */
+/* Hint/streak toast extra text styling */
 .ws-streak-toast .sub{
   display:block;
   margin-top:4px;
@@ -281,6 +284,16 @@ body{
   justify-content:center;
   gap:8px;
   flex-wrap:wrap;
+}
+
+/* 📱 Mobile fine-tune: slightly smaller text + almost full width */
+@media (max-width:480px){
+  .ws-bubble,
+  .ws-streak-toast{
+    font-size:13px;
+    padding:10px 14px;
+    max-width:94vw;
+  }
 }
 
 /* Anchored streak tooltip */
