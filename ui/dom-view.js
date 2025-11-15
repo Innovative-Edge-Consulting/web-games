@@ -156,7 +156,6 @@
           <div class="ws-tag" id="ws-level">Level: -</div>
           <div class="ws-hud-right">
             <div class="ws-tag" id="ws-score">Score: 0</div>
-            <div class="ws-tag" id="ws-hints" title="Hint bank">💡 Hints 0</div>
             <div class="ws-tag" id="ws-streak" title="Daily play streak">🔥 Streak 0</div>
           </div>
         </div>
@@ -179,7 +178,6 @@
       // Cache refs
       this.levelEl = this.root.querySelector('#ws-level');
       this.scoreEl = this.root.querySelector('#ws-score');
-      this.hintsEl = this.root.querySelector('#ws-hints');
       this.streakEl= this.root.querySelector('#ws-streak');
       this.stageEl = this.root.querySelector('.ws-stage');
       this.gridEl  = this.root.querySelector('.ws-grid');
@@ -211,7 +209,6 @@
       if (this.levelEl)  this.levelEl.textContent  = levelText;
       if (this.scoreEl)  this.scoreEl.textContent  = `Score: ${score}`;
       const hints = (hintsAvail ?? 0);
-      if (this.hintsEl)  this.hintsEl.textContent  = `💡 Hints ${hints}`;
       if (this.streakEl) this.streakEl.textContent = `🔥 Streak ${streak ?? 0}`;
 
       // Sync helper bee bubble + disabled state
@@ -230,11 +227,6 @@
       this.streakEl?.addEventListener('click', () => {
         const msg = 'Keep your streak by playing every day. You can also earn a freeze at day 7 of a month (auto-used on a 1-day gap).';
         this.showAnchoredTip(this.streakEl, 'Streak info', msg);
-      }, { passive:true });
-
-      this.hintsEl?.addEventListener('click', () => {
-        const msg = 'Earn 1 hint every 5-day streak milestone. Hints are banked, but you can use at most 1 per level each day.';
-        this.showAnchoredTip(this.hintsEl, 'Hint bank', msg);
       }, { passive:true });
     },
 
