@@ -465,6 +465,14 @@ body{
     0 0 14px rgba(73,127,100,0.7);
 }
 
+/* Slight emphasis on hover when a hint is active (desktop-ish only) */
+.ws-helper-bee.hint-active:hover{
+  transform:scale(1.04);
+  box-shadow:
+    0 0 0 2px var(--brand),
+    0 0 18px rgba(73,127,100,0.9);
+}
+
 .ws-helper-bee.ws-helper-disabled{
   opacity:0.4;
 }
@@ -481,7 +489,12 @@ body{
   border-radius:12px;
   border:1px solid #e2d9a3;
   box-shadow:0 4px 12px rgba(0,0,0,0.18);
-  white-space:nowrap;
+
+  /* ✅ Let it wrap + keep it reasonable in width */
+  max-width:260px;
+  white-space:normal;
+  text-align:left;
+
   opacity:0;
   pointer-events:none;
   transition:opacity .22s ease, transform .22s ease;
@@ -520,6 +533,15 @@ body{
   .ws-helper-bubble{
     font-size:11px;
     padding:6px 10px;
+    right:0;
+    left:auto;
+    transform:translateY(-8px);
+    max-width:72vw;
+  }
+
+  #ws-helper:hover #ws-helper-bubble,
+  .ws-helper-bubble.show{
+    transform:translateY(-12px);
   }
 }
 
