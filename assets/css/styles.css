@@ -389,9 +389,9 @@ body{
 
 /* ===================== HINT BEE HELPER ===================== */
 .ws-helper{
-  position:fixed;
-  right:16px;
+  position:absolute;
   top:50%;
+  right:-56px;
   transform:translateY(-50%);
   z-index:30;
   display:flex;
@@ -440,13 +440,12 @@ body{
   transform:translateY(0);
 }
 
-/* On very small screens, move Bee up so it doesn't block keyboard */
+/* On very small screens, keep Bee near the grid but tighter so it doesn't break layout */
 @media (max-width:430px){
   .ws-helper{
-    top:auto;
-    bottom:88px;
-    right:10px;
-    transform:none;
+    right:-40px;
+    top:45%;
+    transform:translateY(-50%);
   }
 }
 
