@@ -366,12 +366,12 @@
       window.WordscendUI.setHUD(`Level ${idx+1}/4`, store.score, store.streak.current, store.streak.hintsAvailable);
 
       // Hook Hint UX
-      window.WordscendUI.onHintCheck?.(() => canUseHintForLen(levelLen));
-      window.WordscendUI.onHintConsume?.(() => {
-        useHintForLen(levelLen);
-        // Deduct points even if it sends score negative
-        window.WordscendApp_addScore(-HINT_PENALTY);
-      });
+window.WordscendUI.onHintCheck = () => canUseHintForLen(levelLen);
+window.WordscendUI.onHintConsume = () => {
+  useHintForLen(levelLen);
+  // Deduct points even if it sends score negative
+  window.WordscendApp_addScore(-HINT_PENALTY);
+};
 
       const origSubmit = window.WordscendEngine.submitRow.bind(window.WordscendEngine);
       window.WordscendEngine.submitRow = function(){
