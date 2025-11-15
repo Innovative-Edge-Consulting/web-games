@@ -386,3 +386,67 @@ body{
 
 .ws-hud-right { gap:8px; }
 @media (max-width:430px){ .ws-hud-right { gap:6px; } }
+
+/* ===================== HINT BEE HELPER ===================== */
+.ws-helper{
+  position:fixed;
+  right:16px;
+  top:50%;
+  transform:translateY(-50%);
+  z-index:30;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:6px;
+  pointer-events:none;
+}
+
+.ws-helper-bee{
+  pointer-events:auto;
+  width:42px;
+  height:42px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background:var(--card);
+  box-shadow:var(--bubbleShadow);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:22px;
+  cursor:pointer;
+}
+
+.ws-helper-bee.ws-helper-disabled{
+  opacity:0.4;
+}
+
+.ws-helper-bubble{
+  pointer-events:none;
+  max-width:220px;
+  padding:8px 10px;
+  border-radius:12px;
+  background:var(--card);
+  border:1px solid var(--border);
+  box-shadow:var(--bubbleShadow);
+  font:600 12px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  color:var(--muted);
+  opacity:0;
+  transform:translateY(4px);
+  transition:opacity .18s ease, transform .18s ease;
+}
+
+.ws-helper:hover .ws-helper-bubble{
+  opacity:1;
+  transform:translateY(0);
+}
+
+/* On very small screens, move Bee up so it doesn't block keyboard */
+@media (max-width:430px){
+  .ws-helper{
+    top:auto;
+    bottom:88px;
+    right:10px;
+    transform:none;
+  }
+}
+
