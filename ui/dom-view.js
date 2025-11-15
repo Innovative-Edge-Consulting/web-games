@@ -106,6 +106,8 @@
     _keyBound: false,
     _kbClickBound: false,
     _answerMeta: null,
+    onHintCheck: null,
+    onHintConsume: null,
 
     mount(rootEl, config) {
       if (!rootEl) return;
@@ -140,14 +142,14 @@
             <div class="ws-actions">
               <button class="icon-btn" id="ws-info" type="button" title="How to play" aria-label="How to play">
                 <svg viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/>
-                  <path d="M12 8.5h.01M11 11.5h1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"></circle>
+                  <path d="M12 8.5h.01M11 11.5h1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
                 </svg>
               </button>
               <button class="icon-btn" id="ws-settings" type="button" title="Settings" aria-label="Settings">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path
-                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.89 3.31.876 2.42 2.42a1.724 1.724 0 0 0 1.065 2.572c1.757.426 1.757 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.89 1.543-.876 3.31-2.42 2.42a1.724 1.724 0 0 0-2.572 1.065c-.426 1.757-2.924 1.757-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.89-3.31-.876-2.42-2.42a1.724 1.724 0 0 0-1.065-2.572c-1.757-.426-1.757-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.89-1.543.876-3.31 2.42-2.42.996.574 2.273.097 2.573-1.065Z"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.89 3.31.876 2.42 2.42a1.724 1.724 0 0 0 1.065 2.572c1.757.426 1.757 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.89 1.543-.876 3.31-2.42 2.42a1.724 1.724 0 0 0-2.572 1.065c-.426 1.757-2.924 1.757-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.89-3.31-.876-2.42-2.42a1.724 1.724 0 0 0-1.065-2.572c-1.757-.426-1.757-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.89-1.543.876-3.31 2.42-2.42c.996.574 2.273.097 2.573-1.065Z"
                     stroke="currentColor"
                     stroke-width="1.5"
                     stroke-linecap="round"
@@ -409,8 +411,6 @@
         this._hintBtn = btn;
       }
     },
-    onHintCheck: null,
-    onHintConsume: null,
 
     requestHintFlow(){
       const canUse = (typeof this.onHintCheck === 'function') ? !!this.onHintCheck() : false;
@@ -558,7 +558,7 @@
         chip.textContent = (delta > 0 ? `+${delta}` : `${delta}`);
         chip.style.left = `${tRect.left + tRect.width/2}px`;
         chip.style.top  = `${tRect.top  + tRect.height/2}px`;
-        chip.style.transform = 'translate(-50%, -50%) scale(1)';
+        chip.style.transform = 'translate(-50%, -50%) scale(1)`;
         document.body.appendChild(chip);
 
         requestAnimationFrame(()=>{
@@ -568,12 +568,12 @@
           chip.style.transitionTimingFunction = 'cubic-bezier(.22,.82,.25,1)';
           chip.style.left = `${midX}px`;
           chip.style.top  = `${midY}px`;
-          chip.style.transform = 'translate(-50%, -50%) scale(1.05)';
+          chip.style.transform = 'translate(-50%, -50%) scale(1.05)`;
 
           setTimeout(()=>{
             chip.style.left = `${sRect.left + sRect.width/2}px`;
             chip.style.top  = `${sRect.top  + sRect.height/2}px`;
-            chip.style.transform = 'translate(-50%, -50%) scale(0.8)';
+            chip.style.transform = 'translate(-50%, -50%) scale(0.8)`;
             chip.style.opacity = '0.0';
           }, 160);
         });
