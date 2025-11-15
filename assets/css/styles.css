@@ -81,7 +81,35 @@ body{
   font:800 18px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
   letter-spacing:.3px;
 }
-.ws-brand .dot{ width:10px; height:10px; border-radius:50%; background:var(--brand); display:inline-block }
+
+/* Old dot (unused now, but safe to keep) */
+.ws-brand .dot{
+  width:10px; height:10px; border-radius:50%;
+  background:var(--brand); display:inline-block;
+}
+
+/* NEW: WordHive logo blocks (green + yellow squares) */
+.ws-brand-block{
+  width:26px;
+  height:26px;
+  border-radius:6px;
+  display:grid;
+  place-items:center;
+  font:800 16px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  text-transform:uppercase;
+}
+.ws-brand-block-w{
+  background:var(--correct);
+  color:#000;
+}
+.ws-brand-block-h{
+  background:var(--present);
+  color:#000;
+}
+.ws-brand-text{
+  font-weight:800;
+  letter-spacing:.3px;
+}
 
 .ws-actions{ display:flex; align-items:center; gap:8px; }
 .icon-btn{
