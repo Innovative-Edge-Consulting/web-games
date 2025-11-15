@@ -271,7 +271,11 @@ body{
   box-shadow:var(--bubbleShadow); z-index:55; opacity:0; pointer-events:none;
   transition:opacity .2s ease, transform .2s ease;
 }
-.ws-streak-toast.show{ opacity:1; transform:translate(-50%,0); }
+.ws-streak-toast.show{
+  opacity:1;
+  transform:translate(-50%,0);
+  pointer-events:auto;
+}
 .ws-streak-toast .sub{ display:block; font:600 12px/1.2 system-ui; color:var(--muted); margin-top:4px; }
 
 /* Anchored streak tooltip */
