@@ -433,7 +433,7 @@ body{
 .ws-helper{
   position:absolute;
   top:50%;
-  right:-44px;
+  right:-52px;  /* or your current value that avoids overlap on 7 letters */
   transform:translateY(-50%);
   z-index:80;
   width:44px;
@@ -481,7 +481,7 @@ body{
 .ws-helper-bubble{
   position:absolute;
 
-  /* 👇 Anchor bubble to the LEFT of the Bee, vertically centered */
+  /* Anchor bubble to the LEFT of the Bee, vertically centered */
   top:50%;
   right:100%;
   left:auto;
@@ -495,7 +495,7 @@ body{
   border:1px solid #e2d9a3;
   box-shadow:0 4px 12px rgba(0,0,0,0.18);
 
-  /* ✅ Wider, more natural bubble */
+  /* Make bubble reasonably wide so it doesn't wrap every word */
   max-width:min(320px, 80vw);
   white-space:normal;
   text-align:left;
@@ -507,12 +507,11 @@ body{
 }
 
 #ws-helper:hover #ws-helper-bubble,
-.ws-helper-bubble.show{
+#ws-helper-bubble.show{
   opacity:1;
   transform:translate(-8px, -50%) translateY(-4px);
 }
 
-/* Arrow now points from bubble toward the Bee */
 .ws-helper-bubble::after{
   content:"";
   position:absolute;
@@ -527,20 +526,11 @@ body{
   filter:drop-shadow(0 0 1px #e2d9a3);
 }
 
-.ws-helper-bubble.ws-helper-nudge{
-  max-width:240px;
-}
-
-.ws-helper-bubble.ws-helper-nudge.show{
-  opacity:1;
-}
-
-/* 📱 Mobile fine-tune: slightly smaller text + reasonable width */
-@media(max-width:480px){
+@media (max-width:480px){
   .ws-helper-bubble{
     font-size:11px;
     padding:6px 10px;
-    max-width:78vw;   /* generous but never off-screen */
+    max-width:78vw;   /* plenty of width, but not off-screen */
   }
 }
 
