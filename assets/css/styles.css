@@ -480,9 +480,13 @@ body{
 
 .ws-helper-bubble{
   position:absolute;
-  bottom:100%;
-  left:50%;
-  transform:translateX(-50%) translateY(-8px);
+
+  /* 👇 Anchor bubble to the LEFT of the Bee, vertically centered */
+  top:50%;
+  right:100%;
+  left:auto;
+  transform:translate(-8px, -50%);
+
   background:#fff8d6;
   color:#5a4b20;
   font:600 12px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
@@ -491,8 +495,8 @@ body{
   border:1px solid #e2d9a3;
   box-shadow:0 4px 12px rgba(0,0,0,0.18);
 
-  /* ✅ Let it wrap + keep it reasonable in width */
-  max-width:260px;
+  /* ✅ Wider, more natural bubble */
+  max-width:min(320px, 80vw);
   white-space:normal;
   text-align:left;
 
@@ -505,20 +509,21 @@ body{
 #ws-helper:hover #ws-helper-bubble,
 .ws-helper-bubble.show{
   opacity:1;
-  transform:translateX(-50%) translateY(-12px);
+  transform:translate(-8px, -50%) translateY(-4px);
 }
 
+/* Arrow now points from bubble toward the Bee */
 .ws-helper-bubble::after{
   content:"";
   position:absolute;
-  top:100%;
-  left:50%;
-  transform:translateX(-50%);
+  top:50%;
+  left:100%;
+  transform:translateY(-50%);
   width:0;
   height:0;
-  border-top:6px solid #fff8d6;
-  border-left:6px solid transparent;
-  border-right:6px solid transparent;
+  border-top:6px solid transparent;
+  border-bottom:6px solid transparent;
+  border-left:6px solid #fff8d6;
   filter:drop-shadow(0 0 1px #e2d9a3);
 }
 
@@ -530,19 +535,12 @@ body{
   opacity:1;
 }
 
+/* 📱 Mobile fine-tune: slightly smaller text + reasonable width */
 @media(max-width:480px){
   .ws-helper-bubble{
     font-size:11px;
     padding:6px 10px;
-    right:0;
-    left:auto;
-    transform:translateY(-8px);
-    max-width:72vw;
-  }
-
-  #ws-helper:hover #ws-helper-bubble,
-  .ws-helper-bubble.show{
-    transform:translateY(-12px);
+    max-width:78vw;   /* generous but never off-screen */
   }
 }
 
