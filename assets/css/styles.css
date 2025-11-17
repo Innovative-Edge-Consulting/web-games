@@ -433,7 +433,7 @@ body{
 .ws-helper{
   position:absolute;
   top:50%;
-  right:-52px;  /* or your current value that avoids overlap on 7 letters */
+  right:-52px;  /* tuned for desktop so the bee is near but not overlapping 7-letter rows */
   transform:translateY(-50%);
   z-index:80;
   width:44px;
@@ -480,6 +480,8 @@ body{
 
 .ws-helper-bubble{
   position:absolute;
+  display:inline-block;       /* <— key: let it size naturally horizontally */
+  box-sizing:border-box;
 
   /* Anchor bubble to the LEFT of the Bee, vertically centered */
   top:50%;
@@ -504,6 +506,12 @@ body{
   pointer-events:none;
   transition:opacity .22s ease, transform .22s ease;
   z-index:999;
+}
+
+/* Force children inline so they don't stack vertically word-by-word */
+.ws-helper-bubble *{
+  display:inline;
+  white-space:inherit;
 }
 
 #ws-helper:hover #ws-helper-bubble,
