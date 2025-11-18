@@ -464,16 +464,7 @@
         beeEl.classList.remove('hint-active');
       }
 
-      // Ensure a hint trigger exists (button or bee will call requestHintFlow)
-      if (!this._hintBtn){
-        const btn = document.createElement('button');
-        btn.className = 'ws-btn';
-        btn.textContent = 'Show Hint';
-        btn.style.marginTop = '6px';
-        btn.addEventListener('click', () => this.requestHintFlow(), { passive:true });
-        this.stageEl?.prepend(btn);
-        this._hintBtn = btn;
-      }
+      // No extra “Show Hint” button – the bee is now the sole trigger.
     },
 
     onHintCheck: null,
